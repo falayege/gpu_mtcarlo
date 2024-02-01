@@ -3,7 +3,7 @@
 namespace qmc {
 
   enum Method {
-    STANDARD, STANDARD_AV, QUASI, QUASI_BB
+    STANDARD, STD_ANTITHETIC_VAR, QUASI, QUASI_BB
   };
 
   __constant__ int   N, PATHS;

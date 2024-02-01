@@ -23,10 +23,10 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
     printf("Method : Quasi MonteCarlo\n");
   } else if (method == Method::STANDARD) {
     printf("Method : Standard\n");
+      } else if(method == Method::STD_ANTITHETIC_VAR) {
+    printf("Method : Standard with Antithetic Variables\n");
   } else if(method == Method::QUASI_BB) {
     printf("Method : Quasi MonteCarlo with Brownian Bridging\n");
-  } else if(method == Method::STD_ANTITHETIC_VAR) {
-    printf("Method : Standard with Antithetic Variables\n");
   }
 
   // Initalise host product and print name

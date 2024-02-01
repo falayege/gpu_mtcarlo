@@ -38,7 +38,7 @@ namespace qmc {
     else 
       prod.SimulatePaths(N, d_z); 
 
-    if (method == Method::STANDARD_AV)
+    if (method == Method::STD_ANTITHETIC_VAR)
       prod.CalculatePayoffs(greeks, true);
     else 
       prod.CalculatePayoffs(greeks, false);
