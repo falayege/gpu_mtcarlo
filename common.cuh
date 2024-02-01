@@ -95,7 +95,7 @@ namespace qmc {
         cudaFree(lr_gamma);
       }
 
-    __host__ void CalculateStatistics(const int size) {
+    __host__ void CalculateGreeks(const int size) {
         double p_sum = 0.0, p_sum2 = 0.0, d_sum = 0.0, d_sum2 = 0.0,
                v_sum = 0.0, v_sum2 = 0.0, g_sum = 0.0, g_sum2 = 0.0;
         double lr_d_sum = 0.0, lr_d_sum2 = 0.0, lr_v_sum = 0.0,
@@ -135,14 +135,15 @@ namespace qmc {
         err_lr_gamma = sqrt((lr_g_sum2 / size - (lr_g_sum / size) * (lr_g_sum / size)) / size);
       }
 
-    __host__
-      void PrintStatistics(bool print_header, const char* dev) {
+    __host__ void PrintGreeks(bool print_header, const char* dev) {
         if (print_header) {
-          printf("%6s | %13s | %13s | %13s | %13s | %13s | %13s | %13s | %13s |\n",
-              "dev", "price", "err", "delta", "err", "vega", "err", "gamma", "err");
+            printf("Greeks on %s:\n", dev);
         }
-        printf("%6s | %13.8f | %13.8f | %13.8f | %13.8f | %13.8f | %13.8f | %13.8f | %13.8f |\n",
-            dev, avg_price, err_price, avg_delta, err_delta, avg_vega, err_vega, avg_gamma, err_gamma);
-      }
+
+        printf("Average Price: %10.5f (±%10.5f)\n", avg_price, err_price);
+        printf("Delta: %10.5f (±%10.5f)\n", avg_delta, err_delta);
+        printf("Vega: %10.5f (±%10.5f)\n", avg_vega, err_vega);
+        printf("Gamma: %10.5f (±%10.5f)\n", avg_gamma, err_gamma);
+    }
   };
 }

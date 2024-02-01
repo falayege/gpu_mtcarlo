@@ -107,7 +107,7 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
     // Copy back results
 
     h_greeks.CopyFromDevice(npath, d_greeks);
-    h_greeks.CalculateStatistics(npath);
+    h_greeks.CalculateGreeks(npath);
 
     // Transfer averages to final results struct
     final_greeks.price[j] = h_greeks.avg_price;
@@ -117,10 +117,10 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
     final_greeks.lr_delta[j] = h_greeks.avg_lr_delta;
     final_greeks.lr_vega[j] = h_greeks.avg_lr_vega;
     final_greeks.lr_gamma[j] = h_greeks.avg_lr_gamma;
-    /* h_greeks.PrintStatistics(true ,"GPU"); */
+    /* h_greeks.PrintGreeks(true ,"GPU"); */
   }
 
-  final_greeks.CalculateStatistics(runs);
+  final_greeks.CalculateGreeks(runs);
 
   // Grab the LR results to calculate later VRFs
   if (method == Method::STANDARD) {
@@ -131,13 +131,13 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
     lr_greeks.err_vega = final_greeks.err_lr_vega;
     lr_greeks.err_gamma = final_greeks.err_lr_gamma;
 
-    printf("\nLIKELIHOOD RATIO\n| %13s | %13s | %13s | %13s | %13s | %13s |\n| %13.8f | %13.8f | %13.8f | %13.8f | %13.8f | %13.8f |\n\n",
-        "delta", "err", "vega", "err", "gamma", "err", lr_greeks.delta,
-        lr_greeks.err_delta, lr_greeks.vega, lr_greeks.err_vega,
-        lr_greeks.gamma, lr_greeks.err_gamma);
-  } 
+    printf("\nLIKELIHOOD RATIO\n");
+    printf("Delta: %10.5f (Error: %10.5f)\n", lr_greeks.delta, lr_greeks.err_delta);
+    printf("Vega: %10.5f (Error: %10.5f)\n", lr_greeks.vega, lr_greeks.err_vega);
+    printf("Gamma: %10.5f (Error: %10.5f)\n\n", lr_greeks.gamma, lr_greeks.err_gamma);
+  }
 
-  final_greeks.PrintStatistics(true, "GPU");
+  final_greeks.PrintGreeks(true, "GPU");
 
   printf("\nVRF for delta = %13.8f\n",
       (lr_greeks.err_delta * lr_greeks.err_delta)
@@ -177,8 +177,8 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
       h_omega, h_greeks);
   timer.StopHostTimer();
 
-  h_greeks.CalculateStatistics(npath);
-  /* h_greeks.PrintStatistics(false, "CPU"); */
+  h_greeks.CalculateGreeks(npath);
+  /* h_greeks.PrintGreeks(false, "CPU"); */
 
   printf("\nGPU timer (ms): %f \n", timer.GetDeviceElapsedTime());
   printf("CPU timer (ms): %f \n", timer.GetHostElapsedTime());
