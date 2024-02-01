@@ -1,12 +1,10 @@
-/* A timer for both GPU and CPU timing */
-
 #pragma once
 
 #include <cuda.h>
 
 #include <chrono>
 
-namespace demeter {
+namespace qmc {
   class Timer {
     public:
       Timer() {
@@ -53,4 +51,4 @@ namespace demeter {
 
   };
 
-} // namespace demeter
+}

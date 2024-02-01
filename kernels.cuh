@@ -4,14 +4,13 @@
 
 #include "common.cuh"
 
-namespace demeter {
+namespace qmc {
 
-  /* General kernels */
-  __host__ __device__ float NormPDF(float x) {
+  __host__ __device__ float N_PDF(float x) {
     return exp(-0.5f * x * x) * (1.0f / sqrt(2.0f * M_PI));
   }
 
-  __host__ float NormCDF(float x) {
+  __host__ float N_CDF(float x) {
     return std::erfc(-x/std::sqrt(2))/2;
   }
 
@@ -26,23 +25,23 @@ namespace demeter {
     }
   }
 
-  /* Main Monte Carlo simulation */
+
   template <class T>
-  __global__ void MCSimulation(float *d_z, float *d_path, MCResults<double> d_results,
-      MCMode mode) {
+  __global__ void Simulation(float *d_z, float *d_path, Greeks<double> greeks,
+      Method method) {
     T prod;
-    // Index into random variables
+
     prod.ind = threadIdx.x + N*blockIdx.x*blockDim.x;
 
-    if (mode == MCMode::QUASI_BB)
-      prod.SimulatePathQuasiBB(N, d_z, d_path);
+    if (method == Method::QUASI_BB)
+      prod.SimulatePathsQuasiBB(N, d_z, d_path);
     else 
-      prod.SimulatePath(N, d_z); 
+      prod.SimulatePaths(N, d_z); 
 
-    if (mode == MCMode::STANDARD_AV)
-      prod.CalculatePayoffs(d_results, true);
+    if (method == Method::STANDARD_AV)
+      prod.CalculatePayoffs(greeks, true);
     else 
-      prod.CalculatePayoffs(d_results, false);
+      prod.CalculatePayoffs(greeks, false);
   }
 
-} // namespace demeter
+}

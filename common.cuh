@@ -1,12 +1,11 @@
 #pragma once
 
-namespace demeter {
+namespace qmc {
 
-  enum MCMode {
+  enum Method {
     STANDARD, STANDARD_AV, QUASI, QUASI_BB
   };
 
-  /* Device contants */
   __constant__ int   N, PATHS;
   __constant__ float T, r, sigma, dt, omega, s0, k;
 
@@ -16,9 +15,8 @@ namespace demeter {
     T err_delta = 0, err_vega = 0, err_gamma = 0; 
   };
 
-  /* Struct to be passed to the MC method to store calculated values */
   template <class T>
-  struct MCResults {
+  struct Greeks {
     T *price, *delta, *vega, *gamma;
     T *lr_delta, *lr_vega, *lr_gamma;
     double avg_price = 0.0, avg_delta = 0.0, avg_vega = 0.0, avg_gamma = 0.0;
@@ -26,38 +24,21 @@ namespace demeter {
     double avg_lr_delta = 0.0, avg_lr_vega = 0.0, avg_lr_gamma = 0.0;
     double err_lr_delta = 0.0, err_lr_vega = 0.0, err_lr_gamma = 0.0;
 
-    __host__
-      void ClearHost(const int size) {
-        /* memset(price, 0, sizeof(T) * size); */
-        /* memset(delta, 0, sizeof(T) * size); */
-        /* memset(vega, 0, sizeof(T) * size); */
-        /* memset(gamma, 0, sizeof(T) * size); */
-        /* memset(lr_delta, 0, sizeof(T) * size); */
-        /* memset(lr_vega, 0, sizeof(T) * size); */
-        /* memset(lr_gamma, 0, sizeof(T) * size); */
+    __host__ void ClearHost(const int size) {
         avg_price = 0.0; avg_delta = 0.0; avg_vega = 0.0; avg_gamma = 0.0;
         err_price = 0.0; err_delta = 0.0; err_vega = 0.0; err_gamma = 0.0;
         avg_lr_delta = 0.0; avg_lr_vega = 0.0; avg_lr_gamma = 0.0;
         err_lr_delta = 0.0; err_lr_vega = 0.0; err_lr_gamma = 0.0;
       }
 
-    __host__
-      void ClearDevice(const int size) {
-        /* cudaMemset(price, 0, sizeof(T) * size); */
-        /* cudaMemset(delta, 0, sizeof(T) * size); */
-        /* cudaMemset(vega, 0, sizeof(T) * size); */
-        /* cudaMemset(gamma, 0, sizeof(T) * size); */
-        /* cudaMemset(lr_delta, 0, sizeof(T) * size); */
-        /* cudaMemset(lr_vega, 0, sizeof(T) * size); */
-        /* cudaMemset(lr_gamma, 0, sizeof(T) * size); */
+    __host__ void ClearDevice(const int size) {
         avg_price = 0.0; avg_delta = 0.0; avg_vega = 0.0; avg_gamma = 0.0;
         err_price = 0.0; err_delta = 0.0; err_vega = 0.0; err_gamma = 0.0;
         avg_lr_delta = 0.0; avg_lr_vega = 0.0; avg_lr_gamma = 0.0;
         err_lr_delta = 0.0; err_lr_vega = 0.0; err_lr_gamma = 0.0;
       }
 
-    __host__
-      void AllocateHost(const int size) {
+    __host__ void AllocateHost(const int size) {
         price = (T *) malloc(sizeof(T) * size);
         delta = (T *) malloc(sizeof(T) * size);
         vega = (T *) malloc(sizeof(T) * size);
@@ -67,8 +48,7 @@ namespace demeter {
         lr_gamma = (T *) malloc(sizeof(T) * size);
       }
 
-    __host__
-      void AllocateDevice(const int size) {
+    __host__ void AllocateDevice(const int size) {
         cudaMalloc((void **) &price, sizeof(T) * size);
         cudaMalloc((void **) &delta, sizeof(T) * size);
         cudaMalloc((void **) &vega, sizeof(T) * size);
@@ -78,26 +58,24 @@ namespace demeter {
         cudaMalloc((void **) &lr_gamma, sizeof(T) * size);
       }
 
-    __host__
-      void CopyFromDevice(const int size, const MCResults<T> &d_results) {
-         cudaMemcpy(price, d_results.price,
+    __host__ void CopyFromDevice(const int size, const Greeks<T> &d_greeks) {
+         cudaMemcpy(price, d_greeks.price,
               sizeof(T) * size, cudaMemcpyDeviceToHost) ;
-         cudaMemcpy(delta, d_results.delta,
+         cudaMemcpy(delta, d_greeks.delta,
               sizeof(T) * size, cudaMemcpyDeviceToHost) ;
-         cudaMemcpy(vega, d_results.vega,
+         cudaMemcpy(vega, d_greeks.vega,
               sizeof(T) * size, cudaMemcpyDeviceToHost) ;
-         cudaMemcpy(gamma, d_results.gamma,
+         cudaMemcpy(gamma, d_greeks.gamma,
               sizeof(T) * size, cudaMemcpyDeviceToHost) ;
-         cudaMemcpy(lr_delta, d_results.lr_delta,
+         cudaMemcpy(lr_delta, d_greeks.lr_delta,
               sizeof(T) * size, cudaMemcpyDeviceToHost) ;
-         cudaMemcpy(lr_vega, d_results.lr_vega,
+         cudaMemcpy(lr_vega, d_greeks.lr_vega,
               sizeof(T) * size, cudaMemcpyDeviceToHost) ;
-         cudaMemcpy(lr_gamma, d_results.lr_gamma,
+         cudaMemcpy(lr_gamma, d_greeks.lr_gamma,
               sizeof(T) * size, cudaMemcpyDeviceToHost) ;
       }
 
-    __host__
-      void ReleaseHost() {
+    __host__ void ReleaseHost() {
         free(price);
         free(delta);
         free(vega);
@@ -107,8 +85,7 @@ namespace demeter {
         free(lr_gamma);
       }
 
-    __host__
-      void ReleaseDevice() {
+    __host__ void ReleaseDevice() {
         cudaFree(price);
         cudaFree(delta);
         cudaFree(vega);
@@ -118,8 +95,7 @@ namespace demeter {
         cudaFree(lr_gamma);
       }
 
-    __host__
-      void CalculateStatistics(const int size) {
+    __host__ void CalculateStatistics(const int size) {
         double p_sum = 0.0, p_sum2 = 0.0, d_sum = 0.0, d_sum2 = 0.0,
                v_sum = 0.0, v_sum2 = 0.0, g_sum = 0.0, g_sum2 = 0.0;
         double lr_d_sum = 0.0, lr_d_sum2 = 0.0, lr_v_sum = 0.0,
@@ -159,19 +135,14 @@ namespace demeter {
         err_lr_gamma = sqrt((lr_g_sum2 / size - (lr_g_sum / size) * (lr_g_sum / size)) / size);
       }
 
-    // TODO COllect statistics in full precision somehow
     __host__
       void PrintStatistics(bool print_header, const char* dev) {
         if (print_header) {
           printf("%6s | %13s | %13s | %13s | %13s | %13s | %13s | %13s | %13s |\n",
               "dev", "price", "err", "delta", "err", "vega", "err", "gamma", "err");
-          /* printf("----------------------------------------------------------------------------------------------------------------------------------------\n"); */
         }
         printf("%6s | %13.8f | %13.8f | %13.8f | %13.8f | %13.8f | %13.8f | %13.8f | %13.8f |\n",
             dev, avg_price, err_price, avg_delta, err_delta, avg_vega, err_vega, avg_gamma, err_gamma);
-        /* printf("\nVRF for delta = %13.8f\n", (err_lr_delta * err_lr_delta) / (err_delta * err_delta)); */
-        /* printf("VRF for vega  = %13.8f\n", (err_lr_vega * err_lr_vega) / (err_vega * err_vega)); */
-        /* printf("VRF for gamma = %13.8f\n\n", (err_lr_gamma * err_lr_gamma) / (err_gamma * err_gamma)); */
       }
   };
-} // namespace demeter
+}
