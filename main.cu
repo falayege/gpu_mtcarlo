@@ -24,9 +24,9 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
   } else if (method == Method::STANDARD) {
     printf("Method : Standard\n");
   } else if(method == Method::QUASI_BB) {
-    printf("Method : Brownian Movement\n");
-  } else if(method == Method::STANDARD_AV) {
-    printf("Method : STANDARD_AV\n");
+    printf("Method : Quasi MonteCarlo with Brownian Bridging\n");
+  } else if(method == Method::STD_ANTITHETIC_VAR) {
+    printf("Method : Standard with Antithetic Variables\n");
   }
 
   // Initalise host product and print name
@@ -66,7 +66,7 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
   timer.StartDeviceTimer();
 
   curandGenerator_t gen;
-  if (method == Method::STANDARD || method == Method::STANDARD_AV) {
+  if (method == Method::STANDARD || method == Method::STD_ANTITHETIC_VAR) {
      curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT) ;
      curandSetPseudoRandomGeneratorSeed(gen, 1234ULL) ;
     /*  curandGenerateNormal(gen, d_z, timesteps * npath, 0.0f, 1.0f) ); */
@@ -167,7 +167,7 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
       i++;
       j = 0;
     }
-  } else if (method == Method::STANDARD || method == Method::STANDARD_AV) {
+  } else if (method == Method::STANDARD || method == Method::STD_ANTITHETIC_VAR) {
      cudaMemcpy(h_z, d_z, sizeof(float) * timesteps * npath, cudaMemcpyDeviceToHost );
   }
 
@@ -183,7 +183,7 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
   printf("\nGPU timer (ms): %f \n", timer.GetDeviceElapsedTime());
   printf("CPU timer (ms): %f \n", timer.GetHostElapsedTime());
   printf("Speedup factor: %fx\n", timer.GetSpeedUpFactor());
-  printf("------------------------------------------------------------------------\n");
+  printf("\n------------------------------------------------------------------------\n");
   printf("------------------------------------------------------------------------\n");
 
    curandDestroyGenerator(gen) ;
@@ -258,7 +258,7 @@ int main(int argc, const char **argv){
     RunAndCompareMC<ArithmeticAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
         h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
     RunAndCompareMC<ArithmeticAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::STANDARD_AV, lr_greeks);
+        h_omega, h_s0, h_k, Method::STD_ANTITHETIC_VAR, lr_greeks);
     RunAndCompareMC<ArithmeticAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
         h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
     RunAndCompareMC<ArithmeticAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
@@ -268,7 +268,7 @@ int main(int argc, const char **argv){
     RunAndCompareMC<BinaryAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
         h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
     RunAndCompareMC<BinaryAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::STANDARD_AV, lr_greeks);
+        h_omega, h_s0, h_k, Method::STD_ANTITHETIC_VAR, lr_greeks);
     RunAndCompareMC<BinaryAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
         h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
     RunAndCompareMC<BinaryAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
@@ -278,7 +278,7 @@ int main(int argc, const char **argv){
     RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
         h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
     RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::STANDARD_AV, lr_greeks);
+        h_omega, h_s0, h_k, Method::STD_ANTITHETIC_VAR, lr_greeks);
     RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
         h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
     RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
