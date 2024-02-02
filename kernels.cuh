@@ -26,22 +26,20 @@ namespace qmc {
   }
 
 
-  template <class T>
+  template <class S>
   __global__ void Simulation(float *d_z, float *d_path, Greeks<double> greeks,
       Method method) {
-    T prod;
+    S option;
 
-    prod.ind = threadIdx.x + N*blockIdx.x*blockDim.x;
+    option.ind = threadIdx.x + N*blockIdx.x*blockDim.x;
 
     if (method == Method::QUASI_BB)
-      prod.SimulatePathsQuasiBB(N, d_z, d_path);
+      option.SimulatePathsQuasiBB(N, d_z, d_path);
     else 
-      prod.SimulatePaths(N, d_z); 
+      option.SimulatePaths(N, d_z); 
 
-    if (method == Method::STD_ANTITHETIC_VAR)
-      prod.CalculatePayoffs(greeks, true);
-    else 
-      prod.CalculatePayoffs(greeks, false);
+    if (method == Method::STANDARD)
+      option.CalculatePayoffs(greeks, false);
   }
 
 }

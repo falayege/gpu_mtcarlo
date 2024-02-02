@@ -23,15 +23,13 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
     printf("Method : Quasi MonteCarlo\n");
   } else if (method == Method::STANDARD) {
     printf("Method : Standard\n");
-      } else if(method == Method::STD_ANTITHETIC_VAR) {
-    printf("Method : Standard with Antithetic Variables\n");
   } else if(method == Method::QUASI_BB) {
     printf("Method : Quasi MonteCarlo with Brownian Bridging\n");
   }
 
   // Initalise host product and print name
-  S h_prod;
-  h_prod.PrintName();
+  S h_option;
+  h_option.PrintName();
   float *d_z, *d_temp_z;
   float *d_path;
   Greeks<double> h_greeks, d_greeks;
@@ -66,7 +64,7 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
   timer.StartDeviceTimer();
 
   curandGenerator_t gen;
-  if (method == Method::STANDARD || method == Method::STD_ANTITHETIC_VAR) {
+  if (method == Method::STANDARD) {
      curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT) ;
      curandSetPseudoRandomGeneratorSeed(gen, 1234ULL) ;
     /*  curandGenerateNormal(gen, d_z, timesteps * npath, 0.0f, 1.0f) ); */
@@ -167,13 +165,13 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
       i++;
       j = 0;
     }
-  } else if (method == Method::STANDARD || method == Method::STD_ANTITHETIC_VAR) {
+  } else if (method == Method::STANDARD) {
      cudaMemcpy(h_z, d_z, sizeof(float) * timesteps * npath, cudaMemcpyDeviceToHost );
   }
 
 
   timer.StartHostTimer();
-  h_prod.HostMC(npath, timesteps, h_z, h_r, h_dt, h_sigma, h_s0, h_k, h_T,
+  h_option.HostMC(npath, timesteps, h_z, h_r, h_dt, h_sigma, h_s0, h_k, h_T,
       h_omega, h_greeks);
   timer.StopHostTimer();
 
@@ -254,36 +252,33 @@ int main(int argc, const char **argv){
     h_s0      = 100.0f;
     h_k       = 90.0f;
 
-    // AA
-    RunAndCompareMC<ArithmeticAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
-    RunAndCompareMC<ArithmeticAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::STD_ANTITHETIC_VAR, lr_greeks);
-    RunAndCompareMC<ArithmeticAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
-    RunAndCompareMC<ArithmeticAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
-    printf("\n\n\n");
-    // BA
-    RunAndCompareMC<BinaryAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
-    RunAndCompareMC<BinaryAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::STD_ANTITHETIC_VAR, lr_greeks);
-    RunAndCompareMC<BinaryAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
-    RunAndCompareMC<BinaryAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
-    printf("\n\n\n");
-    // L
+    // Lookback option
     RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
         h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
-    RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::STD_ANTITHETIC_VAR, lr_greeks);
     RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
         h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
     RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
         h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
     printf("\n\n\n");
+
+    // Arithmetic Asian option
+    RunAndCompareMC<ArithmeticAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+        h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
+    RunAndCompareMC<ArithmeticAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+        h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
+    RunAndCompareMC<ArithmeticAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+        h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
+    printf("\n\n\n");
+
+    // Binary Asian option
+    RunAndCompareMC<BinaryAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+        h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
+    RunAndCompareMC<BinaryAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+        h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
+    RunAndCompareMC<BinaryAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+        h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
+    printf("\n\n\n");
+
 
 
     /* NPATHS <<= 1; */
