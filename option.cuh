@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cuda.h>
-#include "common.cuh"
+#include "greeks.cuh"
 
 namespace qmc {
 
@@ -14,12 +14,11 @@ namespace qmc {
 
   template <class O>
   struct ArithmeticAsian : Option<O> {
-    O s1, av_s1, s_tilde, av_s_tilde, avg_s1, av_avg_s1;
-    O psi_d, av_psi_d, payoff, av_payoff, delta, av_delta, vega, av_vega,
-      gamma, av_gamma;
-    O vega_inner_sum, av_vega_inner_sum;
-    O lr_delta, lr_vega, lr_gamma;
-    float z1, av_z1, z, av_z, W1, av_W1, W_tilde, av_W_tilde;
+    O s1, s_tilde, s_max;
+    O psi_d, payoff, delta, vega, gamma, theta;
+    O vega_inner_sum;
+    O lr_delta, lr_vega, lr_gamma, lr_theta;
+    float z, z1, W1, W_tilde;
     int ind, ind_zero;
 
     void PrintName() {
@@ -29,54 +28,34 @@ namespace qmc {
     __device__ void SimulatePaths(const int N, float *d_z) override { 
         // Initial setup
         z   = d_z[ind]; 
-        av_z = -z;
         z1 = z; // Capture z1 for lr_estimate
-        av_z1 = av_z;
 
         // Initial path values
         W1 = sqrt(dt) * z;
-        av_W1 = sqrt(dt) * av_z;
         W_tilde = W1;
-        av_W_tilde = W1;
         s_tilde = s0 * exp(omega * sqrt(dt - dt) + sigma * (W_tilde - W1));
-        av_s_tilde = s0 * exp(omega * sqrt(dt - dt) + sigma * (av_W_tilde - av_W1));
         s1 = s0 * exp(omega * dt + sigma * W1);
-        av_s1 = s0 * exp(omega * dt + sigma * av_W1);
         
         // Set initial values required for greek estimates
-        avg_s1 = s1;
-        av_avg_s1 = av_s1;
         vega_inner_sum = s_tilde * (W_tilde - W1 - sigma * (dt - dt));
-        av_vega_inner_sum = av_s_tilde * (av_W_tilde - av_W1 - sigma * (dt - dt));
         lr_vega = ((z*z - O(1.0)) / sigma) - (z * sqrt(dt));
 
         // Simulate over rest of N timesteps
         for (int n = 1; n < N; n++) { 
           ind += blockDim.x;      // shift pointer to random variable
           z = d_z[ind]; 
-          av_z = -z;
 
           // Stock dynamics
           W_tilde = W_tilde + sqrt(dt) * z;
           s_tilde = s0 * exp(omega * (dt*n - dt) + sigma * (W_tilde - W1));
           s1 = s_tilde * exp(omega * dt + sigma * W1); 
 
-          // Antithetic path
-          av_W_tilde = av_W_tilde + sqrt(dt) * av_z;
-          av_s_tilde = s0 * exp(omega * (dt*n - dt) + sigma * (av_W_tilde - av_W1));
-          av_s1 = av_s_tilde * exp(omega * dt + sigma * av_W1); 
-
           // Required for greek estimations
           vega_inner_sum += s_tilde * (W_tilde - W1 - sigma * (dt*n - dt));
-          av_vega_inner_sum += av_s_tilde * (av_W_tilde - av_W1 - sigma * (dt*n - dt));
           lr_vega += ((z*z - O(1.0)) / sigma) - (z * sqrt(dt));
-          avg_s1 += s1; 
-          av_avg_s1 += av_s1;
+
         } 
-        avg_s1 /= N; 
-        av_avg_s1 /= N;
         vega_inner_sum /= N;
-        av_vega_inner_sum /= N;
       } 
 
 		__device__ O wn(int n, O *d_path) {
@@ -118,7 +97,6 @@ namespace qmc {
         s1 = s0 * exp(omega * dt + sigma * W1);
 
         vega_inner_sum = s_tilde * (W_tilde - W1 - sigma * (dt - dt));
-        avg_s1 = s1;
 
         for (int k = 1; k < N; ++k) {
           W_tilde = W_tilde + d_path[ind_zero + k * blockDim.x];
@@ -126,60 +104,49 @@ namespace qmc {
           s1 = s_tilde * exp(omega * dt + sigma * W1); 
 
           vega_inner_sum += s_tilde * (W_tilde - W1 - sigma * (dt*k - dt));
-          avg_s1 += s1;
         }
-        avg_s1 /= N;
         vega_inner_sum /= N;
       }
 
-    __device__ void CalculatePayoffs(Greeks<double> &greeks, bool av) override {
+    __device__ void CalculatePayoffs(Greeks<double> &greeks) override {
         psi_d = (log(k) - log(avg_s1) - omega * dt) / (sigma * sqrt(dt));
-        av_psi_d = (log(k) - log(av_avg_s1) - omega * dt) / (sigma * sqrt(dt));
 
         // Discounted payoff
         payoff = exp(-r * T) * max(avg_s1 - k, O(0.0));
-        av_payoff = exp(-r * T) * max(av_avg_s1 - k, O(0.0));
 
         // CPW Delta
         delta = exp(r * (dt - T)) * (avg_s1 / s0) 
           * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt)));
-        av_delta = exp(r * (dt - T)) * (av_avg_s1 / s0) 
-          * (O(1.0) - normcdf(av_psi_d - sigma * sqrt(dt)));
 
         // CPW Vega
         vega = exp(r * (dt - T)) * (O(1.0) - normcdf(psi_d - sigma*sqrt(dt)))
           * vega_inner_sum + k * exp(-r * T) * N_PDF(psi_d) * sqrt(dt);
-        av_vega = exp(r * (dt - T)) * (O(1.0) - normcdf(av_psi_d - sigma*sqrt(dt)))
-          * av_vega_inner_sum + k * exp(-r * T) * N_PDF(av_psi_d) * sqrt(dt);
 
         // CPW Gamma
         gamma = ((k * exp(-r * T)) / (s0 * s0 * sigma * sqrt(dt)))
           * N_PDF(psi_d);
-        av_gamma = ((k * exp(-r * T)) / (s0 * s0 * sigma * sqrt(dt)))
-          * N_PDF(av_psi_d);
+
+        // CPW Theta
+        theta = 0; //TODO
 
         // Likelihood ratio
         lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
         lr_vega = payoff * lr_vega;
         lr_gamma = payoff * (((z1*z1 - O(1.0)) / (s0 * s0 * sigma * sigma * dt)) - 
           (z1 / (s0 * s0 * sigma * sqrt(dt))));
+        lr_theta = 0; //TODO
 
-        // Antithetic averages
-        if (av) {
-          payoff = 0.5 * (payoff + av_payoff);
-          delta = 0.5 * (delta + av_delta);
-          vega = 0.5 * (vega + av_vega);
-          gamma = 0.5 * (gamma + av_gamma);
-        }
 
         // Store results in respective arrays
         greeks.price[threadIdx.x + blockIdx.x*blockDim.x] = payoff;
         greeks.delta[threadIdx.x + blockIdx.x*blockDim.x] = delta;
         greeks.vega[threadIdx.x + blockIdx.x*blockDim.x] = vega;
         greeks.gamma[threadIdx.x + blockIdx.x*blockDim.x] = gamma;
+        greeks.theta[threadIdx.x + blockIdx.x*blockDim.x] = theta;
         greeks.lr_delta[threadIdx.x + blockIdx.x*blockDim.x] = lr_delta;
         greeks.lr_vega[threadIdx.x + blockIdx.x*blockDim.x] = lr_vega;
         greeks.lr_gamma[threadIdx.x + blockIdx.x*blockDim.x] = lr_gamma;
+        greeks.lr_theta[threadIdx.x + blockIdx.x*blockDim.x] = lr_theta;
       }
 
     __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float dt,
@@ -232,33 +199,35 @@ namespace qmc {
 
           gamma = ((k * exp(-r * T)) / (s0 * s0 * sigma * sqrt(dt)))
             * N_PDF(psi_d);
+          theta=0;//TODO
 
           lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
           lr_vega = payoff * lr_vega;
           lr_gamma = payoff * (((z1*z1 - O(1.0)) / (s0 * s0 * sigma * sigma * dt)) - 
             (z1 / (s0 * s0 * sigma * sqrt(dt))));
+          lr_theta=0;//TODO
 
           results.price[i] = payoff;
           results.delta[i] = delta;
           results.vega[i] = vega;
           results.gamma[i] = gamma;
+          results.theta[i] = theta;
           results.lr_delta[i] = lr_delta;
           results.lr_vega[i] = lr_vega;
           results.lr_gamma[i] = lr_gamma;
+          results.lr_theta[i] = lr_theta;
         }
       }
   };
 
   template <class O>
   struct BinaryAsian : Option<O> {
-    O s1, s_tilde, avg_s1, av_s1, av_s_tilde, av_avg_s1;
-    O psi_d, payoff, delta, vega, gamma, av_psi_d, av_payoff, av_delta, av_vega,
-      av_gamma;
-    O vega_inner_sum, av_vega_inner_sum;
-    O lr_delta, lr_vega, lr_gamma;
-    float z, z1, W1, W_tilde, av_z, av_z1, av_W1, av_W_tilde;
-    int ind, ind_zero;
-    
+    O s1, s_tilde, s_max;
+    O psi_d, payoff, delta, vega, gamma, theta;
+    O vega_inner_sum;
+    O lr_delta, lr_vega, lr_gamma, lr_theta;
+    float z, z1, W1, W_tilde;
+    int ind, ind_zero;    
 
     void PrintName() {
       printf("\n **OPTION** : BinaryAsian\n");
@@ -268,52 +237,34 @@ namespace qmc {
         // Initial setup
         z   = d_z[ind]; 
         z1 = z; // Capture z1 for lr_estimate
-        av_z = -z;
-        av_z1 = av_z;
 
         // Initial path values
         W1 = sqrt(dt) * z;
         W_tilde = W1;
         s_tilde = s0 * exp(omega * sqrt(dt - dt) + sigma * (W_tilde - W1));
         s1 = s0 * exp(omega * dt + sigma * W1);
-        av_W1 = sqrt(dt) * av_z;
-        av_W_tilde = av_W1;
-        av_s_tilde = s0 * exp(omega * sqrt(dt - dt) + sigma * (av_W_tilde - av_W1));
-        av_s1 = s0 * exp(omega * dt + sigma * av_W1);
         
         // Set initial values required for greek estimates
-        avg_s1 = s1;
-        av_avg_s1 = av_s1;
         vega_inner_sum = s_tilde * (W_tilde - W1 - sigma * (dt - dt));
-        av_vega_inner_sum = av_s_tilde * (av_W_tilde - av_W1 - sigma * (dt - dt));
         lr_vega = ((z*z - O(1.0)) / sigma) - (z * sqrt(dt));
 
         // Simulate over rest of N timesteps
         for (int n = 1; n < N; n++) { 
           ind += blockDim.x;      // shift pointer to random variable
           z = d_z[ind]; 
-          av_z = -z;
 
           // Stock dynamics
           W_tilde = W_tilde + sqrt(dt) * z;
           s_tilde = s0 * exp(omega * (dt*n - dt) + sigma * (W_tilde - W1));
           s1 = s_tilde * exp(omega * dt + sigma * W1); 
 
-          av_W_tilde = av_W_tilde + sqrt(dt) * av_z;
-          av_s_tilde = s0 * exp(omega * (dt*n - dt) + sigma * (av_W_tilde - av_W1));
-          av_s1 = av_s_tilde * exp(omega * dt + sigma * av_W1); 
-
           // Required for greek estimations
           vega_inner_sum += s_tilde * (W_tilde - W1 - sigma * (dt*n - dt));
-          av_vega_inner_sum += av_s_tilde * (av_W_tilde - av_W1 - sigma * (dt*n - dt));
           lr_vega += ((z*z - 1) / sigma) - (z * sqrt(dt));
           avg_s1 += s1; 
-          av_avg_s1 += av_s1; 
         } 
-        avg_s1 /= N; 
-        av_avg_s1 /= N; 
+        avg_s1 /= N;
         vega_inner_sum /= N;
-        av_vega_inner_sum /= N;
       }
 
 		__device__ O wn(int n, O *d_path) {
@@ -371,52 +322,43 @@ namespace qmc {
 
     __device__ void CalculatePayoffs(Greeks<double> &greeks, bool av) override {
         psi_d = (log(k) - log(avg_s1) - omega * dt) / (sigma * sqrt(dt));
-        av_psi_d = (log(k) - log(av_avg_s1) - omega * dt) / (sigma * sqrt(dt));
 
         // Discounted payoff
         payoff = avg_s1 - k > O(0.0) ? exp(-r * T) : O(0.0);
-        av_payoff = av_avg_s1 - k > O(0.0) ? exp(-r * T) : O(0.0);
 
         // CPW Delta
         delta = (exp(-r * T) / (s0 * sigma * sqrt(dt))) * N_PDF(psi_d);
-        av_delta = (exp(-r * T) / (s0 * sigma * sqrt(dt))) * N_PDF(av_psi_d);
 
         // CPW Vega
         vega = exp(-r * T) * N_PDF(psi_d) *
           ((O(1.0) / (sigma * sqrt(dt) * avg_s1)) * vega_inner_sum +
            psi_d / sigma - sqrt(dt));
-        av_vega = exp(-r * T) * N_PDF(av_psi_d) *
-          ((O(1.0) / (sigma * sqrt(dt) * av_avg_s1)) * av_vega_inner_sum +
-           av_psi_d / sigma - sqrt(dt));
 
         // CPW Gamma
         gamma = (exp(-r * T) / (s0 * s0 * sigma * sqrt(dt))) * N_PDF(psi_d)
           * ((psi_d / (sigma * sqrt(dt)) - O(1.0)));
-        av_gamma = (exp(-r * T) / (s0 * s0 * sigma * sqrt(dt))) * N_PDF(av_psi_d)
-          * ((av_psi_d / (sigma * sqrt(dt)) - O(1.0)));
+
+        //CPW Theta 
+        theta = 0; //TODO
 
         // LR
         lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
         lr_vega = payoff * lr_vega;
         lr_gamma = payoff * (((z1*z1 - O(1.0)) / (s0 * s0 * sigma * sigma * dt)) - 
           (z1 / (s0 * s0 * sigma * sqrt(dt))));
+        lr_theta=0;//TODO
 
-        // Antithetic averages
-        if (av) {
-          payoff = 0.5 * (payoff + av_payoff);
-          delta = 0.5 * (delta + av_delta);
-          vega = 0.5 * (vega + av_vega);
-          gamma = 0.5 * (gamma + av_gamma);
-        }
-
-        // Store results
+        
+        // Store results in respective arrays
         greeks.price[threadIdx.x + blockIdx.x*blockDim.x] = payoff;
         greeks.delta[threadIdx.x + blockIdx.x*blockDim.x] = delta;
         greeks.vega[threadIdx.x + blockIdx.x*blockDim.x] = vega;
         greeks.gamma[threadIdx.x + blockIdx.x*blockDim.x] = gamma;
+        greeks.theta[threadIdx.x + blockIdx.x*blockDim.x] = theta;
         greeks.lr_delta[threadIdx.x + blockIdx.x*blockDim.x] = lr_delta;
         greeks.lr_vega[threadIdx.x + blockIdx.x*blockDim.x] = lr_vega;
         greeks.lr_gamma[threadIdx.x + blockIdx.x*blockDim.x] = lr_gamma;
+        greeks.lr_theta[threadIdx.x + blockIdx.x*blockDim.x] = lr_theta;
       }
 
     __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float dt,
@@ -470,30 +412,34 @@ namespace qmc {
           gamma = (exp(-r * T) / (s0 * s0 * sigma * sqrt(dt))) * N_PDF(psi_d)
           * ((psi_d / (sigma * sqrt(dt)) - O(1.0)));
 
+          theta = 0;//TODO
+
           lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
           lr_vega = payoff * lr_vega;
           lr_gamma = payoff * (((z1*z1 - O(1.0)) / (s0 * s0 * sigma * sigma * dt)) - 
             (z1 / (s0 * s0 * sigma * sqrt(dt))));
+          lr_theta=0;//TODO
 
           results.price[i] = payoff;
           results.delta[i] = delta;
           results.vega[i] = vega;
           results.gamma[i] = gamma;
+          results.theta[i] = theta;
           results.lr_delta[i] = lr_delta;
           results.lr_vega[i] = lr_vega;
           results.lr_gamma[i] = lr_gamma;
+          results.lr_theta[i] = lr_theta;
         }
       }
   };
 
   template <class O>
   struct Lookback : Option<O> {
-    O s1, s_tilde, s_max, av_s1, av_s_tilde, av_s_max;
-    O psi_d, payoff, delta, vega, gamma, av_psi_d, av_payoff, av_delta, av_vega,
-      av_gamma;  
-    O vega_inner_sum, av_vega_inner_sum;
-    O lr_delta, lr_vega, lr_gamma;
-    float z, z1, W1, W_tilde, av_z, av_z1, av_W1, av_W_tilde;
+    O s1, s_tilde, s_max;
+    O psi_d, payoff, delta, vega, gamma, theta;
+    O vega_inner_sum;
+    O lr_delta, lr_vega, lr_gamma, lr_theta;
+    float z, z1, W1, W_tilde;
     int ind, ind_zero;
 
     void PrintName() {
@@ -504,8 +450,6 @@ namespace qmc {
         // Initial setup
         z   = d_z[ind]; 
         z1 = z; // Capture z1 for lr_estimate
-        av_z = -z;
-        av_z1 = av_z;
 
         // Initial path values
         W1 = sqrt(dt) * z;
@@ -513,40 +457,24 @@ namespace qmc {
         s_tilde = s0 * exp(omega * sqrt(dt - dt) + sigma * (W_tilde - W1));
         s1 = s0 * exp(omega * dt + sigma * W1);
 
-        av_W1 = sqrt(dt) * av_z;
-        av_W_tilde = av_W1;
-        av_s_tilde = s0 * exp(omega * sqrt(dt - dt) + sigma * (av_W_tilde - av_W1));
-        av_s1 = s0 * exp(omega * dt + sigma * av_W1);
-        
         // Set initial values required for greek estimates
         vega_inner_sum = s_tilde * (W_tilde - W1 - sigma * (dt - dt));
-        av_vega_inner_sum = av_s_tilde * (av_W_tilde - av_W1 - sigma * (dt - dt));
         lr_vega = ((z*z - O(1.0)) / sigma) - (z * sqrt(dt));
         s_max = s1;
-        av_s_max = av_s1;
 
         for (int n = 1; n < N; n++) {
           ind += blockDim.x;      // shift pointer to random variable
           z = d_z[ind]; 
-          av_z = -z;
 
           // Stock dynamics
           W_tilde = W_tilde + sqrt(dt) * z;
           s_tilde = s0 * exp(omega * (dt*n - dt) + sigma * (W_tilde - W1));
           s1 = s_tilde * exp(omega * dt + sigma * W1); 
 
-          av_W_tilde = av_W_tilde + sqrt(dt) * av_z;
-          av_s_tilde = s0 * exp(omega * (dt*n - dt) + sigma * (av_W_tilde - av_W1));
-          av_s1 = av_s_tilde * exp(omega * dt + sigma * av_W1); 
-
           // Required for greek estimations
           if (s1 > s_max) {
             s_max = s1;
             vega_inner_sum = s_tilde * (W_tilde - W1 - sigma * (dt*n - dt));
-          } 
-          if (av_s1 > av_s_max) {
-            av_s_max = av_s1;
-            av_vega_inner_sum = av_s_tilde * (av_W_tilde - av_W1 - sigma * (dt*n - dt));
           } 
           lr_vega += ((z*z - 1) / sigma) - (z * sqrt(dt));
         }
@@ -607,52 +535,42 @@ namespace qmc {
 
     __device__ void CalculatePayoffs(Greeks<double> &greeks, bool av) override {
         psi_d = (log(k) - log(s_max) - omega * dt) / (sigma * sqrt(dt));
-        av_psi_d = (log(k) - log(av_s_max) - omega * dt) / (sigma * sqrt(dt));
 
         // Discounted payoff
         payoff = exp(-r * T) * max(s_max - k, O(0.0));
-        av_payoff = exp(-r * T) * max(av_s_max - k, O(0.0));
 
         // CPW Delta
         delta = exp(r * (dt - T)) * (s_max / s0)
           * (1.0f - normcdf(psi_d - sigma * sqrt(dt)));
-        av_delta = exp(r * (dt - T)) * (av_s_max / s0)
-          * (1.0f - normcdf(av_psi_d - sigma * sqrt(dt)));
 
         // CPW Vega
         vega = exp(r * (dt - T)) * (O(1.0) - normcdf(psi_d - sigma*sqrt(dt)))
           * vega_inner_sum + k * exp(-r * T) * N_PDF(psi_d) * sqrt(dt);
-        av_vega = exp(r * (dt - T)) * (O(1.0) - normcdf(av_psi_d - sigma*sqrt(dt)))
-          * av_vega_inner_sum + k * exp(-r * T) * N_PDF(av_psi_d) * sqrt(dt);
 
         // CPW Gamma
         gamma = ((k * exp(-r * T)) / (s0 * s0 * sigma * sqrt(dt)))
           * N_PDF(psi_d);
-        av_gamma = ((k * exp(-r * T)) / (s0 * s0 * sigma * sqrt(dt)))
-          * N_PDF(av_psi_d);
+        
+        //CPW Theta
+        theta = 0; //TODO
 
         // LR
         lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
         lr_vega = payoff * lr_vega;
         lr_gamma = payoff * (((z1*z1 - O(1.0)) / (s0 * s0 * sigma * sigma * dt)) - 
           (z1 / (s0 * s0 * sigma * sqrt(dt))));
-
-        // Antithetic averages 
-        if (av) {
-          payoff = 0.5 * (payoff + av_payoff);
-          delta = 0.5 * (delta + av_delta);
-          vega = 0.5 * (vega + av_vega);
-          gamma = 0.5 * (gamma + av_gamma);
-        }
-
-        // Store results
+        lr_theta = 0; //TODO
+        
+        // Store results in respective arrays
         greeks.price[threadIdx.x + blockIdx.x*blockDim.x] = payoff;
         greeks.delta[threadIdx.x + blockIdx.x*blockDim.x] = delta;
         greeks.vega[threadIdx.x + blockIdx.x*blockDim.x] = vega;
         greeks.gamma[threadIdx.x + blockIdx.x*blockDim.x] = gamma;
+        greeks.theta[threadIdx.x + blockIdx.x*blockDim.x] = theta;
         greeks.lr_delta[threadIdx.x + blockIdx.x*blockDim.x] = lr_delta;
         greeks.lr_vega[threadIdx.x + blockIdx.x*blockDim.x] = lr_vega;
         greeks.lr_gamma[threadIdx.x + blockIdx.x*blockDim.x] = lr_gamma;
+        greeks.lr_theta[threadIdx.x + blockIdx.x*blockDim.x] = lr_theta;
       }
 
     __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float dt,
@@ -704,18 +622,23 @@ namespace qmc {
           gamma = ((k * exp(-r * T)) / (s0 * s0 * sigma * sqrt(dt)))
             * N_PDF(psi_d);
 
+          theta = 0; //TODO
+
           lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
           lr_vega = payoff * lr_vega;
           lr_gamma = payoff * (((z1*z1 - O(1.0)) / (s0 * s0 * sigma * sigma * dt)) - 
             (z1 / (s0 * s0 * sigma * sqrt(dt))));
+          lr_theta = 0; //TODO
 
           results.price[i] = payoff;
           results.delta[i] = delta;
           results.vega[i] = vega;
           results.gamma[i] = gamma;
+          results.theta[i]=theta;
           results.lr_delta[i] = lr_delta;
           results.lr_vega[i] = lr_vega;
           results.lr_gamma[i] = lr_gamma;
+          results.lr_theta[i]=lr_theta;
         }
       }
   };

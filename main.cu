@@ -7,7 +7,7 @@
 #include <cuda.h>
 #include <curand.h>
 
-#include "common.cuh"
+#include "greeks.cuh"
 #include "kernels.cuh"
 #include "option.cuh"
 #include "timer.cuh"
@@ -112,9 +112,11 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
     final_greeks.delta[j] = h_greeks.avg_delta;
     final_greeks.vega[j] = h_greeks.avg_vega;
     final_greeks.gamma[j] = h_greeks.avg_gamma;
+    final_greeks.theta[j] = h_greeks.avg_theta;
     final_greeks.lr_delta[j] = h_greeks.avg_lr_delta;
     final_greeks.lr_vega[j] = h_greeks.avg_lr_vega;
     final_greeks.lr_gamma[j] = h_greeks.avg_lr_gamma;
+    final_greeks.lr_theta[j] = h_greeks.avg_lr_theta;
     /* h_greeks.PrintGreeks(true ,"GPU"); */
   }
 
@@ -125,8 +127,10 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
     lr_greeks.delta = final_greeks.avg_lr_delta;
     lr_greeks.vega = final_greeks.avg_lr_vega;
     lr_greeks.gamma = final_greeks.avg_lr_gamma;
+    lr_greeks.theta = final_greeks.avg_lr_theta;
     lr_greeks.err_delta = final_greeks.err_lr_delta;
     lr_greeks.err_vega = final_greeks.err_lr_vega;
+    lr_greeks.err_theta = final_greeks.err_lr_theta;
     lr_greeks.err_gamma = final_greeks.err_lr_gamma;
 
     printf("\nLIKELIHOOD RATIO\n");
