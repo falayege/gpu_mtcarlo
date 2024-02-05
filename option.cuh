@@ -37,6 +37,7 @@ namespace qmc {
         s1 = s0 * exp(omega * dt + sigma * W1);
         
         // Set initial values required for greek estimates
+        avg_s1 = s1;
         vega_inner_sum = s_tilde * (W_tilde - W1 - sigma * (dt - dt));
         lr_vega = ((z*z - O(1.0)) / sigma) - (z * sqrt(dt));
 
@@ -53,8 +54,10 @@ namespace qmc {
           // Required for greek estimations
           vega_inner_sum += s_tilde * (W_tilde - W1 - sigma * (dt*n - dt));
           lr_vega += ((z*z - O(1.0)) / sigma) - (z * sqrt(dt));
+          avg_s1 += s1; 
 
         } 
+        avg_s1 /= N; 
         vega_inner_sum /= N;
       } 
 
@@ -97,6 +100,7 @@ namespace qmc {
         s1 = s0 * exp(omega * dt + sigma * W1);
 
         vega_inner_sum = s_tilde * (W_tilde - W1 - sigma * (dt - dt));
+        avg_s1 = s1;
 
         for (int k = 1; k < N; ++k) {
           W_tilde = W_tilde + d_path[ind_zero + k * blockDim.x];
@@ -104,7 +108,9 @@ namespace qmc {
           s1 = s_tilde * exp(omega * dt + sigma * W1); 
 
           vega_inner_sum += s_tilde * (W_tilde - W1 - sigma * (dt*k - dt));
+          avg_s1 += s1;
         }
+        avg_s1 /= N;
         vega_inner_sum /= N;
       }
 
@@ -245,6 +251,7 @@ namespace qmc {
         s1 = s0 * exp(omega * dt + sigma * W1);
         
         // Set initial values required for greek estimates
+        avg_s1 = s1;
         vega_inner_sum = s_tilde * (W_tilde - W1 - sigma * (dt - dt));
         lr_vega = ((z*z - O(1.0)) / sigma) - (z * sqrt(dt));
 
