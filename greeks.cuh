@@ -71,7 +71,7 @@ namespace qmc {
               sizeof(T) * size, cudaMemcpyDeviceToHost) ;
         cudaMemcpy(gamma, d_greeks.gamma,
               sizeof(T) * size, cudaMemcpyDeviceToHost) ;
-        cudaMemcpy(theta, d_greeks.gamma,
+        cudaMemcpy(theta, d_greeks.theta,
               sizeof(T) * size, cudaMemcpyDeviceToHost) ;
         cudaMemcpy(lr_delta, d_greeks.lr_delta,
               sizeof(T) * size, cudaMemcpyDeviceToHost) ;
@@ -79,7 +79,7 @@ namespace qmc {
               sizeof(T) * size, cudaMemcpyDeviceToHost) ;
         cudaMemcpy(lr_gamma, d_greeks.lr_gamma,
               sizeof(T) * size, cudaMemcpyDeviceToHost) ;
-        cudaMemcpy(lr_theta, d_greeks.lr_gamma,
+        cudaMemcpy(lr_theta, d_greeks.lr_theta,
               sizeof(T) * size, cudaMemcpyDeviceToHost) ;
       }
 
