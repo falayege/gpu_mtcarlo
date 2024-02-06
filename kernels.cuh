@@ -14,6 +14,7 @@ namespace qmc {
     return std::erfc(-x/std::sqrt(2))/2;
   }
 
+  //Algorithm 2
   __global__ void TransformSobol(float *d_z, float *temp_z) {
     int desired_idx = threadIdx.x + N * blockIdx.x * blockDim.x;
     int temp_idx = threadIdx.x + blockIdx.x * blockDim.x;
