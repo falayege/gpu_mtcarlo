@@ -8,8 +8,7 @@ namespace qmc {
   template <class O>
   struct Option {
     __device__ virtual void SimulatePaths(const int N, float *d_z) = 0;
-    __device__ virtual void CalculatePayoffs(Greeks<double> &greeks,
-        bool av) = 0;
+    __device__ virtual void CalculatePayoffs(Greeks<double> &greeks) = 0;
   };
 
   template <class O>
@@ -327,7 +326,7 @@ namespace qmc {
         vega_inner_sum /= N;
       }
 
-    __device__ void CalculatePayoffs(Greeks<double> &greeks, bool av) override {
+    __device__ void CalculatePayoffs(Greeks<double> &greeks) override {
         psi_d = (log(k) - log(avg_s1) - omega * dt) / (sigma * sqrt(dt));
 
         // Discounted payoff
@@ -540,7 +539,7 @@ namespace qmc {
         }
       }
 
-    __device__ void CalculatePayoffs(Greeks<double> &greeks, bool av) override {
+    __device__ void CalculatePayoffs(Greeks<double> &greeks) override {
         psi_d = (log(k) - log(s_max) - omega * dt) / (sigma * sqrt(dt));
 
         // Discounted payoff

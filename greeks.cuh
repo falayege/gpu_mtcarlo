@@ -11,15 +11,15 @@ namespace qmc {
 
   template <class T>
   struct LRResults {
-    T delta = 0, vega = 0, gamma = 0;
-    T err_delta = 0, err_vega = 0, err_gamma = 0; 
+    T delta = 0, vega = 0, gamma = 0, theta = 0;
+    T err_delta = 0, err_vega = 0, err_gamma = 0, err_theta= 0; 
   };
 
   template <class T>
   struct Greeks {
     T *price, *delta, *vega, *gamma, *theta;
     T *lr_delta, *lr_vega, *lr_gamma, *lr_theta;
-    double avg_price = 0.0, avg_delta = 0.0, avg_vega = 0.0, avg_gamma = 0.0 avg_theta = 0.0;
+    double avg_price = 0.0, avg_delta = 0.0, avg_vega = 0.0, avg_gamma = 0.0, avg_theta = 0.0;
     double err_price = 0.0, err_delta = 0.0, err_vega = 0.0, err_gamma = 0.0, err_theta=0.0;
     double avg_lr_delta = 0.0, avg_lr_vega = 0.0, avg_lr_gamma = 0.0, avg_lr_theta =0.0;
     double err_lr_delta = 0.0, err_lr_vega = 0.0, err_lr_gamma = 0.0, err_lr_theta=0.0;
