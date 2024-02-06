@@ -25,6 +25,7 @@ namespace qmc {
     }
 
     __device__ void SimulatePaths(const int N, float *d_z) override { 
+        //Algorithm 3
         // Initial setup
         z   = d_z[ind]; 
         z1 = z; // Capture z1 for lr_estimate
@@ -62,7 +63,7 @@ namespace qmc {
 
 		__device__ O wn(int n, O *d_path) {
         if (n == 0) return O(0.0);
-        else return d_path[ind_zero + blockDim.x * (n-1)];
+        else return d_path[ind_zeO ro + blockDim.x * (n-1)];
       }
 
     __device__ float tn(int n) {
@@ -76,6 +77,7 @@ namespace qmc {
         int h = N; // 2^m
         int m = static_cast<int>(log2f(h));
 
+        //Algorithm 4
         d_path[ind_zero] = d_z[ind];
 
         for (int k = 1; k <= m; k++) { // k = 1,...,m
@@ -239,6 +241,7 @@ namespace qmc {
     }
 
     __device__ void SimulatePaths(const int N, float *d_z) override {
+        //Algorithm 3
         // Initial setup
         z   = d_z[ind]; 
         z1 = z; // Capture z1 for lr_estimate
@@ -288,7 +291,7 @@ namespace qmc {
         ind_zero = ind;
         int h = N; // 2^m
         int m = static_cast<int>(log2f(h));
-
+        //Algorithm 4
         d_path[ind_zero] = d_z[ind];
 
         for (int k = 1; k <= m; k++) { // k = 1,...,m
