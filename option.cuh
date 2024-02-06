@@ -63,7 +63,7 @@ namespace qmc {
 
 		__device__ O wn(int n, O *d_path) {
         if (n == 0) return O(0.0);
-        else return d_path[ind_zeO ro + blockDim.x * (n-1)];
+        else return d_path[ind_zero + blockDim.x * (n-1)];
       }
 
     __device__ float tn(int n) {
