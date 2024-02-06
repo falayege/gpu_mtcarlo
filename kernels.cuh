@@ -39,8 +39,7 @@ namespace qmc {
     else 
       option.SimulatePaths(N, d_z); 
 
-    if (method == Method::STANDARD)
-      option.CalculatePayoffs(greeks);
+    option.CalculatePayoffs(greeks);
   }
 
 }
