@@ -47,7 +47,7 @@ namespace qmc {
           z = d_z[ind]; 
 
           // Stock dynamics
-          W_tilde = W_tilde + sqrt(dt) * z;
+          W_tilde = W_tilde + sqrt(dt) * z; //Random variable 
           s_tilde = s0 * exp(omega * (dt*n - dt) + sigma * (W_tilde - W1));
           s1 = s_tilde * exp(omega * dt + sigma * W1); 
 
@@ -134,14 +134,14 @@ namespace qmc {
           * N_PDF(psi_d);
 
         // CPW Theta
-        theta = 0; //TODO
+        theta = -exp(-r * T) * (avg_s1 / s0) * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt))) * r;
 
         // Likelihood ratio
         lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
         lr_vega = payoff * lr_vega;
         lr_gamma = payoff * (((z1*z1 - O(1.0)) / (s0 * s0 * sigma * sigma * dt)) - 
           (z1 / (s0 * s0 * sigma * sqrt(dt))));
-        lr_theta = 0; //TODO
+        lr_theta = -r*(lr_delta*s0+payoff);
 
 
         // Store results in respective arrays
@@ -206,13 +206,13 @@ namespace qmc {
 
           gamma = ((k * exp(-r * T)) / (s0 * s0 * sigma * sqrt(dt)))
             * N_PDF(psi_d);
-          theta=0;//TODO
+          theta = -exp(-r * T) * (avg_s1 / s0) * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt))) * r;
 
           lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
           lr_vega = payoff * lr_vega;
           lr_gamma = payoff * (((z1*z1 - O(1.0)) / (s0 * s0 * sigma * sigma * dt)) - 
             (z1 / (s0 * s0 * sigma * sqrt(dt))));
-          lr_theta=0;//TODO
+          lr_theta = -r*(lr_delta*s0+payoff);
 
           results.price[i] = payoff;
           results.delta[i] = delta;
@@ -333,7 +333,12 @@ namespace qmc {
         psi_d = (log(k) - log(avg_s1) - omega * dt) / (sigma * sqrt(dt));
 
         // Discounted payoff
-        payoff = avg_s1 - k > O(0.0) ? exp(-r * T) : O(0.0);
+        if (avg_s1-k > O(0.0)){
+          payoff=exp(-r * T);
+        }
+        else{
+          payoff = O(0.0);
+        }
 
         // CPW Delta
         delta = (exp(-r * T) / (s0 * sigma * sqrt(dt))) * N_PDF(psi_d);
@@ -348,14 +353,14 @@ namespace qmc {
           * ((psi_d / (sigma * sqrt(dt)) - O(1.0)));
 
         //CPW Theta 
-        theta = 0; //TODO
+        theta = -r * exp(-r * T) * ((avg_s1 > k) ? 1.0 : 0.0);
 
         // LR
         lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
         lr_vega = payoff * lr_vega;
         lr_gamma = payoff * (((z1*z1 - O(1.0)) / (s0 * s0 * sigma * sigma * dt)) - 
           (z1 / (s0 * s0 * sigma * sqrt(dt))));
-        lr_theta=0;//TODO
+        lr_theta = -lr_delta * r;
 
         
         // Store results in respective arrays
@@ -421,13 +426,14 @@ namespace qmc {
           gamma = (exp(-r * T) / (s0 * s0 * sigma * sqrt(dt))) * N_PDF(psi_d)
           * ((psi_d / (sigma * sqrt(dt)) - O(1.0)));
 
-          theta = 0;//TODO
+          theta = -r * exp(-r * T) * ((avg_s1 > k) ? 1.0 : 0.0);
+
 
           lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
           lr_vega = payoff * lr_vega;
           lr_gamma = payoff * (((z1*z1 - O(1.0)) / (s0 * s0 * sigma * sigma * dt)) - 
             (z1 / (s0 * s0 * sigma * sqrt(dt))));
-          lr_theta=0;//TODO
+          lr_theta = -lr_delta * r;
 
           results.price[i] = payoff;
           results.delta[i] = delta;
@@ -561,7 +567,7 @@ namespace qmc {
           * N_PDF(psi_d);
         
         //CPW Theta
-        theta = 0; //TODO
+        theta = -exp(-r * T) * (s_max / s0) * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt))) * r;
 
         // LR
         lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
@@ -631,7 +637,7 @@ namespace qmc {
           gamma = ((k * exp(-r * T)) / (s0 * s0 * sigma * sqrt(dt)))
             * N_PDF(psi_d);
 
-          theta = 0; //TODO
+          theta = -exp(-r * T) * (s_max / s0) * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt))) * r;
 
           lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
           lr_vega = payoff * lr_vega;
