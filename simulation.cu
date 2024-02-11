@@ -330,12 +330,12 @@ int main(int argc, const char **argv){
     printf("\n\n\n");
 
     // Up And Out Barrier option
-    //RunAndCompareMC<UpAndOutCall<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-    //    h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
-    //RunAndCompareMC<UpAndOutCall<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-    //  h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
-    //RunAndCompareMC<UpAndOutCall<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-    //  h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
+    RunAndCompareMC<UpAndOutCall<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+        h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
+    RunAndCompareMC<UpAndOutCall<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+      h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
+    RunAndCompareMC<UpAndOutCall<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+      h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
     printf("\n\n\n");
 
 
