@@ -659,95 +659,95 @@ namespace qmc {
   };
 
   template <class O>
-struct UpAndOutCall : Option<O> {
-  O s0, s1, barrier, k, r, sigma, T, dt, omega;
-  float z, W1;
-  int ind;
-  O payoff, delta, vega, gamma, theta, rho;
-  O lr_delta, lr_vega, lr_gamma, lr_theta, lr_rho;
+  struct UpAndOutCall : Option<O> {
+    O s0, s1, barrier, k, r, sigma, T, dt, omega;
+    float z, W1;
+    int ind;
+    O payoff, delta, vega, gamma, theta, rho;
+    O lr_delta, lr_vega, lr_gamma, lr_theta, lr_rho;
 
-  void PrintName() override {
-    printf("\n**OPTION** : UpAndOutCall\n");
-  }
+    void PrintName() override {
+      printf("\n**OPTION** : UpAndOutCall\n");
+    }
 
-  __device__ void SimulatePaths(const int N, float *d_z) override {
-    z = d_z[ind]; // Assuming ind is correctly set to index into d_z
-    s1 = s0;
-    bool knockedOut = false;
+    __device__ void SimulatePaths(const int N, float *d_z) override {
+      z = d_z[ind]; // Assuming ind is correctly set to index into d_z
+      s1 = s0;
+      bool knockedOut = false;
 
-    for (int i = 0; i < N; ++i) {
-      float dW = sqrt(dt) * d_z[ind + i];
-      s1 = s1 * exp((r - 0.5 * sigma * sigma) * dt + sigma * dW); // SDE for price update
-      if (s1 > barrier) {
-        knockedOut = true;
-        break;
+      for (int i = 0; i < N; ++i) {
+        float dW = sqrt(dt) * d_z[ind + i];
+        s1 = s1 * exp((r - 0.5 * sigma * sigma) * dt + sigma * dW); // SDE for price update
+        if (s1 > barrier) {
+          knockedOut = true;
+          break;
+        }
+      }
+
+      payoff = knockedOut ? O(0) : exp(-r * T) * max(s1 - k, O(0));
+    }
+
+    __device__ void CalculatePayoffs(Greeks<double>& greeks) override {
+      if (!knockedOut) {
+        O d1 = (log(s0 / k) + (r + 0.5 * sigma * sigma) * T) / (sigma * sqrt(T));
+        O d2 = d1 - sigma * sqrt(T);
+
+        delta = normcdf(d1);
+        vega = s0 * sqrt(T) * N_PDF(d1);
+        gamma = N_PDF(d1) / (s0 * sigma * sqrt(T));
+        theta = -(s0 * N_PDF(d1) * sigma) / (2 * sqrt(T)) - r * k * exp(-r * T) * normcdf(d2);
+      } else {
+        delta = vega = gamma = theta = O(0);
+      }
+
+      lr_delta = lr_vega = lr_gamma = lr_theta = O(0); // Placeholder for actual LR calculations
+
+      greeks.price[threadIdx.x + blockIdx.x * blockDim.x] = payoff;
+      greeks.delta[threadIdx.x + blockIdx.x * blockDim.x] = delta;
+      greeks.vega[threadIdx.x + blockIdx.x * blockDim.x] = vega;
+      greeks.gamma[threadIdx.x + blockIdx.x * blockDim.x] = gamma;
+      greeks.theta[threadIdx.x + blockIdx.x * blockDim.x] = theta;
+    }
+
+    __device__ void SimulatePathsQuasiBB(const int N, float *d_z, O *d_path) override {
+      // Quasi-Brownian Bridge implementation
+      float dt = T / N;
+      float omega = r - 0.5 * sigma * sigma;
+      bool knockedOut = false;
+      s1 = s0;
+
+      float W = 0.0; // Accumulated Brownian motion
+      for (int i = 0; i < N; ++i) {
+          float dW = sqrt(dt) * d_z[ind + i]; // Incremental Brownian motion
+          W += dW; // Accumulate Brownian motion
+          float t = dt * (i + 1);
+          float bridgeFactor = t * (T - t) / T; // Brownian Bridge adjustment factor
+
+          // Apply the Brownian Bridge to adjust the path
+          float adjustedW = W + bridgeFactor * (d_z[N] - W * T / t); // Final step uses d_z[N] for the end point
+          float s_tilde = s0 * exp(omega * t + sigma * adjustedW); // Adjusted stock price
+
+          // Check for barrier breach
+          if (s_tilde > barrier) {
+              knockedOut = true;
+              break;
+          }
+
+          s1 = s_tilde; // Update the current stock price
+      }
+
+      payoff = knockedOut ? O(0) : exp(-r * T) * max(s1 - k, O(0));
+    }
+
+    __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float dt, float sigma, O s0, O k, O barrier, float T, float omega, Greeks<double> &results) override {
+      // The host Monte Carlo simulation method; implement as per other options
+      // This would involve iterating over each path, calculating payoffs, and aggregating results
+      for (int i = 0; i < NPATHS; ++i) {
+          SimulatePaths(N, h_z + i * N); // Or SimulatePathsQuasiBB for the quasi-Monte Carlo method
+          CalculatePayoffs(results);
       }
     }
-
-    payoff = knockedOut ? O(0) : exp(-r * T) * max(s1 - k, O(0));
-  }
-
-  __device__ void CalculatePayoffs(Greeks<double>& greeks) override {
-    if (!knockedOut) {
-      O d1 = (log(s0 / k) + (r + 0.5 * sigma * sigma) * T) / (sigma * sqrt(T));
-      O d2 = d1 - sigma * sqrt(T);
-
-      delta = normcdf(d1);
-      vega = s0 * sqrt(T) * N_PDF(d1);
-      gamma = N_PDF(d1) / (s0 * sigma * sqrt(T));
-      theta = -(s0 * N_PDF(d1) * sigma) / (2 * sqrt(T)) - r * k * exp(-r * T) * normcdf(d2);
-    } else {
-      delta = vega = gamma = theta = O(0);
-    }
-
-    lr_delta = lr_vega = lr_gamma = lr_theta = O(0); // Placeholder for actual LR calculations
-
-    greeks.price[threadIdx.x + blockIdx.x * blockDim.x] = payoff;
-    greeks.delta[threadIdx.x + blockIdx.x * blockDim.x] = delta;
-    greeks.vega[threadIdx.x + blockIdx.x * blockDim.x] = vega;
-    greeks.gamma[threadIdx.x + blockIdx.x * blockDim.x] = gamma;
-    greeks.theta[threadIdx.x + blockIdx.x * blockDim.x] = theta;
-  }
-
-  __device__ void SimulatePathsQuasiBB(const int N, float *d_z, O *d_path) override {
-    // Quasi-Brownian Bridge implementation
-    float dt = T / N;
-    float omega = r - 0.5 * sigma * sigma;
-    bool knockedOut = false;
-    s1 = s0;
-
-    float W = 0.0; // Accumulated Brownian motion
-    for (int i = 0; i < N; ++i) {
-        float dW = sqrt(dt) * d_z[ind + i]; // Incremental Brownian motion
-        W += dW; // Accumulate Brownian motion
-        float t = dt * (i + 1);
-        float bridgeFactor = t * (T - t) / T; // Brownian Bridge adjustment factor
-
-        // Apply the Brownian Bridge to adjust the path
-        float adjustedW = W + bridgeFactor * (d_z[N] - W * T / t); // Final step uses d_z[N] for the end point
-        float s_tilde = s0 * exp(omega * t + sigma * adjustedW); // Adjusted stock price
-
-        // Check for barrier breach
-        if (s_tilde > barrier) {
-            knockedOut = true;
-            break;
-        }
-
-        s1 = s_tilde; // Update the current stock price
-    }
-
-    payoff = knockedOut ? O(0) : exp(-r * T) * max(s1 - k, O(0));
-  }
-
-  __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float dt, float sigma, O s0, O k, O barrier, float T, float omega, Greeks<double> &results) override {
-    // The host Monte Carlo simulation method; implement as per other options
-    // This would involve iterating over each path, calculating payoffs, and aggregating results
-    for (int i = 0; i < NPATHS; ++i) {
-        SimulatePaths(N, h_z + i * N); // Or SimulatePathsQuasiBB for the quasi-Monte Carlo method
-        CalculatePayoffs(results);
-    }
-  }
-};
+  };
 
 
 }
