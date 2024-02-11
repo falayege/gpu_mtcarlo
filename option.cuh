@@ -663,8 +663,9 @@ namespace qmc {
     O s0, s1, barrier, k, r, sigma, T, dt, omega;
     float z, W1;
     int ind;
-    O payoff, delta, vega, gamma, theta, rho;
-    O lr_delta, lr_vega, lr_gamma, lr_theta, lr_rho;
+    O payoff, delta, vega, gamma, theta;
+    O lr_delta, lr_vega, lr_gamma, lr_theta;
+    bool knockedOut;
 
     void PrintName() override {
       printf("\n**OPTION** : UpAndOutCall\n");
@@ -673,7 +674,7 @@ namespace qmc {
     __device__ void SimulatePaths(const int N, float *d_z) override {
       z = d_z[ind]; // Assuming ind is correctly set to index into d_z
       s1 = s0;
-      bool knockedOut = false;
+      knockedOut = false;
 
       for (int i = 0; i < N; ++i) {
         float dW = sqrt(dt) * d_z[ind + i];
@@ -702,12 +703,17 @@ namespace qmc {
 
       lr_delta = lr_vega = lr_gamma = lr_theta = O(0); // Placeholder for actual LR calculations
 
-      greeks.price[threadIdx.x + blockIdx.x * blockDim.x] = payoff;
-      greeks.delta[threadIdx.x + blockIdx.x * blockDim.x] = delta;
-      greeks.vega[threadIdx.x + blockIdx.x * blockDim.x] = vega;
-      greeks.gamma[threadIdx.x + blockIdx.x * blockDim.x] = gamma;
-      greeks.theta[threadIdx.x + blockIdx.x * blockDim.x] = theta;
-    }
+
+      greeks.price[threadIdx.x + blockIdx.x*blockDim.x] = payoff;
+      greeks.delta[threadIdx.x + blockIdx.x*blockDim.x] = delta;
+      greeks.vega[threadIdx.x + blockIdx.x*blockDim.x] = vega;
+      greeks.gamma[threadIdx.x + blockIdx.x*blockDim.x] = gamma;
+      greeks.theta[threadIdx.x + blockIdx.x*blockDim.x] = theta;
+      greeks.lr_delta[threadIdx.x + blockIdx.x*blockDim.x] = lr_delta;
+      greeks.lr_vega[threadIdx.x + blockIdx.x*blockDim.x] = lr_vega;
+      greeks.lr_gamma[threadIdx.x + blockIdx.x*blockDim.x] = lr_gamma;
+      greeks.lr_theta[threadIdx.x + blockIdx.x*blockDim.x] = lr_theta;
+      }
 
     __device__ void SimulatePathsQuasiBB(const int N, float *d_z, O *d_path) override {
       // Quasi-Brownian Bridge implementation
