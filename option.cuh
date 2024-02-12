@@ -631,7 +631,7 @@ namespace qmc {
     };
   template <class O>
   struct ForwardStartEuropeanCall : Option<O> {
-    O s1, s_tilde, avg_s1, s_max;
+    O s1, s_tilde, avg_s1, s_max,k_min;
     O psi_d, payoff, delta, vega, gamma, theta;
     O vega_inner_sum;
     O lr_delta, lr_vega, lr_gamma, lr_theta;
@@ -762,7 +762,7 @@ namespace qmc {
         greeks.lr_gamma[threadIdx.x + blockIdx.x*blockDim.x] = lr_gamma;
         greeks.lr_theta[threadIdx.x + blockIdx.x*blockDim.x] = lr_theta;
       }
-      
+
     __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float dt,
                           float sigma, O s0, float T, Greeks<double> &results) {
         ind = 0;
