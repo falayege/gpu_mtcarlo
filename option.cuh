@@ -631,7 +631,7 @@ namespace qmc {
     };
   template <class O>
   struct ForwardStartEuropeanCall : Option<O> {
-    O s1, s_tilde, avg_s1, s_max,k_min;
+    O s1, s_tilde, avg_s1, s_fin,k_min;
     O psi_d, payoff, delta, vega, gamma, theta;
     O vega_inner_sum;
     O lr_delta, lr_vega, lr_gamma, lr_theta;
@@ -674,7 +674,7 @@ namespace qmc {
           } 
           lr_vega += ((z*z - 1) / sigma) - (z * sqrt(dt));
         }
-        s_max=s1;
+        s_fin=s1;
       }
 
     __device__ void SimulatePathsQuasiBB(const int N, float *d_z, O *d_path) {
@@ -719,7 +719,7 @@ namespace qmc {
             vega_inner_sum = s_tilde * (W_tilde - W1 - sigma * (dt*k - dt));
           }
         }
-        s_max=s1;
+        s_fin=s1;
       }
 
 __device__ void CalculatePayoffs(Greeks<double> &greeks) override {
@@ -778,7 +778,7 @@ __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float d
           // Set initial values required for greek estimates
           vega_inner_sum = s_tilde * (W_tilde - W1 - sigma * (dt - dt));
           lr_vega = ((z*z - O(1.0)) / sigma) - (z * sqrt(dt));
-          s_max = s1;
+          s_fin = s1;
 
           for (int n=0; n<N; n++) {
             ind++;
@@ -790,18 +790,18 @@ __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float d
             s1 = s_tilde * exp(omega * dt + sigma * W1); 
 
             // Required for greek estimations
-            if (s1 > s_max) {
-              s_max = s1;
+            if (s1 > s_fin) {
+              s_fin = s1;
               vega_inner_sum = s_tilde * (W_tilde - W1 - sigma * (dt*n - dt)); 
             } 
             lr_vega += ((z*z - 1) / sigma) - (z * sqrt(dt));
           }
 
-          psi_d = (log(k_min) - log(s_max) - omega * dt) / (sigma * sqrt(dt));
+          psi_d = (log(k_min) - log(s_fin) - omega * dt) / (sigma * sqrt(dt));
 
-          payoff = exp(-r * T*0.9) * max(s_max - k_min, 0.0f);
+          payoff = exp(-r * T*0.9) * max(s_fin - k_min, 0.0f);
 
-          delta = exp(r * (dt - T*0.9)) * (s_max / s0)
+          delta = exp(r * (dt - T*0.9)) * (s_fin / s0)
             * (1.0f - normcdf(psi_d - sigma * sqrt(dt)));
 
           vega = exp(r * (dt - T*0.9)) * (O(1.0) - N_CDF(psi_d - sigma*sqrt(dt)))
@@ -810,7 +810,7 @@ __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float d
           gamma = ((k * exp(-r * T*0.9)) / (s0 * s0 * sigma * sqrt(dt)))
             * N_PDF(psi_d);
 
-          theta = -exp(-r * T*0.9) * (s_max / s0) * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt))) * r;
+          theta = -exp(-r * T*0.9) * (s_fin / s0) * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt))) * r;
 
           lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
           lr_vega = payoff * lr_vega;
