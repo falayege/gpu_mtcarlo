@@ -13,7 +13,7 @@ namespace qmc {
 
   template <class O>
   struct ArithmeticAsian : Option<O> {
-    O s1, s_tilde, avg_s1, s_max;
+    O s1, s_tilde, avg_s1;
     O psi_d, payoff, delta, vega, gamma, theta;
     O vega_inner_sum;
     O lr_delta, lr_vega, lr_gamma, lr_theta;
@@ -220,7 +220,7 @@ namespace qmc {
 
   template <class O>
   struct BinaryAsian : Option<O> {
-    O s1, s_tilde, avg_s1, s_max;
+    O s1, s_tilde, avg_s1;
     O psi_d, payoff, delta, vega, gamma, theta;
     O vega_inner_sum;
     O lr_delta, lr_vega, lr_gamma, lr_theta;
@@ -748,7 +748,7 @@ __device__ void CalculatePayoffs(Greeks<double> &greeks) override {
         lr_vega = payoff * lr_vega;
         lr_gamma = payoff * (((z1*z1 - O(1.0)) / (s0 * s0 * sigma * sigma * dt)) - 
           (z1 / (s0 * s0 * sigma * sqrt(dt))));
-        lr_theta = 0; //TODO
+        lr_theta = -payoff * r * exp(-r * (T*0.9));
         
         // Store results in respective arrays
         greeks.price[threadIdx.x + blockIdx.x*blockDim.x] = payoff;
@@ -816,7 +816,7 @@ __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float d
           lr_vega = payoff * lr_vega;
           lr_gamma = payoff * (((z1*z1 - O(1.0)) / (s0 * s0 * sigma * sigma * dt)) - 
             (z1 / (s0 * s0 * sigma * sqrt(dt))));
-          lr_theta = 0; 
+          lr_theta = -payoff * r * exp(-r * (T*0.9));
 
           results.price[i] = payoff;
           results.delta[i] = delta;
