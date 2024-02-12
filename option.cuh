@@ -797,26 +797,26 @@ __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float d
             lr_vega += ((z*z - 1) / sigma) - (z * sqrt(dt));
           }
 
-          psi_d = (log(k) - log(s_max) - omega * dt) / (sigma * sqrt(dt));
+          psi_d = (log(k_min) - log(s_max) - omega * dt) / (sigma * sqrt(dt));
 
-          payoff = exp(-r * T) * max(s_max - k, 0.0f);
+          payoff = exp(-r * T*0.9) * max(s_max - k_min, 0.0f);
 
-          delta = exp(r * (dt - T)) * (s_max / s0)
+          delta = exp(r * (dt - T*0.9)) * (s_max / s0)
             * (1.0f - normcdf(psi_d - sigma * sqrt(dt)));
 
-          vega = exp(r * (dt - T)) * (O(1.0) - N_CDF(psi_d - sigma*sqrt(dt)))
-            * vega_inner_sum + k * exp(-r * T) * N_PDF(psi_d) * sqrt(dt);
+          vega = exp(r * (dt - T*0.9)) * (O(1.0) - N_CDF(psi_d - sigma*sqrt(dt)))
+            * vega_inner_sum + k_min * exp(-r * T) * N_PDF(psi_d) * sqrt(dt);
 
-          gamma = ((k * exp(-r * T)) / (s0 * s0 * sigma * sqrt(dt)))
+          gamma = ((k * exp(-r * T*0.9)) / (s0 * s0 * sigma * sqrt(dt)))
             * N_PDF(psi_d);
 
-          theta = -exp(-r * T) * (s_max / s0) * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt))) * r;
+          theta = -exp(-r * T*0.9) * (s_max / s0) * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt))) * r;
 
           lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
           lr_vega = payoff * lr_vega;
           lr_gamma = payoff * (((z1*z1 - O(1.0)) / (s0 * s0 * sigma * sigma * dt)) - 
             (z1 / (s0 * s0 * sigma * sqrt(dt))));
-          lr_theta = 0; //TODO
+          lr_theta = 0; 
 
           results.price[i] = payoff;
           results.delta[i] = delta;
