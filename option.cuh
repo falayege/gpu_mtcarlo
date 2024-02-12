@@ -631,7 +631,7 @@ namespace qmc {
     };
   template <class O>
   struct ForwardStartEuropeanCall : Option<O> {
-    O s1, s_tilde, avg_s1, s_fin,k_min;
+    O s1, s_tilde, avg_s1,k_min;
     O psi_d, payoff, delta, vega, gamma, theta;
     O vega_inner_sum;
     O lr_delta, lr_vega, lr_gamma, lr_theta;
@@ -674,7 +674,6 @@ namespace qmc {
           } 
           lr_vega += ((z*z - 1) / sigma) - (z * sqrt(dt));
         }
-        s_fin=s1;
       }
 
     __device__ void SimulatePathsQuasiBB(const int N, float *d_z, O *d_path) {
@@ -719,7 +718,6 @@ namespace qmc {
             vega_inner_sum = s_tilde * (W_tilde - W1 - sigma * (dt*k - dt));
           }
         }
-        s_fin=s1;
       }
 
 __device__ void CalculatePayoffs(Greeks<double> &greeks) override {
