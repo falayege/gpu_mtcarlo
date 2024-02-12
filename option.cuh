@@ -778,7 +778,7 @@ __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float d
           // Set initial values required for greek estimates
           vega_inner_sum = s_tilde * (W_tilde - W1 - sigma * (dt - dt));
           lr_vega = ((z*z - O(1.0)) / sigma) - (z * sqrt(dt));
-          s_fin = s1;
+          k_min = s1;
 
           for (int n=0; n<N; n++) {
             ind++;
@@ -790,18 +790,18 @@ __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float d
             s1 = s_tilde * exp(omega * dt + sigma * W1); 
 
             // Required for greek estimations
-            if (s1 > s_fin) {
-              s_fin = s1;
+            if (s1 <k_min && n<N/10) {
+              k_min = s1;
               vega_inner_sum = s_tilde * (W_tilde - W1 - sigma * (dt*n - dt)); 
             } 
             lr_vega += ((z*z - 1) / sigma) - (z * sqrt(dt));
           }
 
-          psi_d = (log(k_min) - log(s_fin) - omega * dt) / (sigma * sqrt(dt));
+          psi_d = (log(k_min) - log(s1) - omega * dt) / (sigma * sqrt(dt));
 
-          payoff = exp(-r * T*0.9) * max(s_fin - k_min, 0.0f);
+          payoff = exp(-r * T*0.9) * max(s1- k_min, 0.0f);
 
-          delta = exp(r * (dt - T*0.9)) * (s_fin / s0)
+          delta = exp(r * (dt - T*0.9)) * (s1 / s0)
             * (1.0f - normcdf(psi_d - sigma * sqrt(dt)));
 
           vega = exp(r * (dt - T*0.9)) * (O(1.0) - N_CDF(psi_d - sigma*sqrt(dt)))
