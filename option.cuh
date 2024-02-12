@@ -724,11 +724,11 @@ namespace qmc {
 
     __device__ void CalculatePayoffs(Greeks<double> &greeks) override {
       // Calculate payoff for a forward start option// Payoff calculation for the Forward Start European Call option
-      payoff = exp(-r * T) * max(s1 - strike, O(0.0));
+      payoff = exp(-r * T) * max(s1 - k, O(0.0));
 
       // Greeks calculation needs to account for the forward start nature
       // For simplicity, let's consider d1 and d2 as they would be in a standard European call, adjusted for the forward start
-      O d1 = (log(s1 / strike) + (r + 0.5 * sigma * sigma) * (T - T_start)) / (sigma * sqrt(T - T_start));
+      O d1 = (log(s1 / k) + (r + 0.5 * sigma * sigma) * (T - T_start)) / (sigma * sqrt(T - T_start));
       O d2 = d1 - sigma * sqrt(T - T_start);
 
       // Delta: Sensitivity of the option's price to the underlying stock price change
@@ -741,7 +741,7 @@ namespace qmc {
       gamma = N_PDF(d1) / (s1 * sigma * sqrt(T - T_start)) * exp(-r * (T - T_start));
 
       // Theta: Sensitivity to the passage of time
-      theta = -s1 * sigma * N_PDF(d1) / (2 * sqrt(T - T_start)) * exp(-r * (T - T_start)) - r * strike * exp(-r * (T - T_start)) * normcdf(d2);
+      theta = -s1 * sigma * N_PDF(d1) / (2 * sqrt(T - T_start)) * exp(-r * (T - T_start)) - r * k * exp(-r * (T - T_start)) * normcdf(d2);
 
       lr_delta = (payoff / s0) * (z1 / sigma * sqrt(T - T_start)); 
       lr_vega = payoff * (s0 * sqrt(T - T_start) * z1 / sigma); 
