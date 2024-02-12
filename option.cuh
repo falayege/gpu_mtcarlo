@@ -631,7 +631,7 @@ namespace qmc {
     };
   template <class O>
   struct ForwardStartEuropeanCall : Option<O> {
-    O s1, s_tilde, avg_s1, k_min;
+    O s1, s_tilde, avg_s1, k_min,s_max;
     O psi_d, payoff, delta, vega, gamma, theta;
     O vega_inner_sum;
     O lr_delta, lr_vega, lr_gamma, lr_theta;
