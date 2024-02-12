@@ -724,14 +724,16 @@ namespace qmc {
 
     __device__ void CalculatePayoffs(Greeks<double> &greeks) override {
       payoff = exp(-r * T) * max(s1 - k, O(0.0));
+      O d1 = (log(s1 / k) + (r + 0.5 * sigma * sigma) * (T - T/10)) / (sigma * sqrt(T - T/10));
+      O d2 = d1 - sigma * sqrt(T - T/10);
 
-      delta = exp(-r * (T - T/10)) * normcdf((log(s1 / k) + (r + 0.5 * sigma * sigma) * (T - T/10)) / (sigma * sqrt(T - T/10)));
+      delta = exp(-r * (T - T/10)) * normcdf(d1);
 
-      vega = s1 * sqrt(T - T/10) * exp(-r * (T - T/10)) * N_PDF((log(s1 / k) + (r + 0.5 * sigma * sigma) * (T - T/10)) / (sigma * sqrt(T - T/10)));
+      vega = s1 * sqrt(T - T/10) * exp(-r * (T - T/10)) * N_PDF(d1);
 
-      gamma = N_PDF((log(s1 / k) + (r + 0.5 * sigma * sigma) * (T - T/10)) / (sigma * sqrt(T - T/10)) / (s1 * sigma * sqrt(T - T/10)) * exp(-r * (T - T/10));
+      gamma = N_PDF(d1) / (s1 * sigma * sqrt(T - T/10)) * exp(-r * (T - T/10));
 
-      theta = -s1 * sigma * N_PDF((log(s1 / k) + (r + 0.5 * sigma * sigma) * (T - T/10)) / (sigma * sqrt(T - T/10))) / (2 * sqrt(T - T/10)) * exp(-r * (T - T/10)) - r * k * exp(-r * (T - T/10)) * normcdf((log(s1 / k) + (r + 0.5 * sigma * sigma) * (T - T/10)) / (sigma * sqrt(T - T/10)- sigma * sqrt(T - T/10));
+      theta = -s1 * sigma * N_PDF(d1) / (2 * sqrt(T - T/10)) * exp(-r * (T - T/10)) - r * k * exp(-r * (T - T/10)) * normcdf(d2);
 
       lr_delta = (payoff / s0) * (z1 / sigma * sqrt(T - T/10)); 
       lr_vega = payoff * (s0 * sqrt(T - T/10) * z1 / sigma); 
