@@ -755,70 +755,15 @@ namespace qmc {
 
     __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float dt,
                           float sigma, O s0, float T, Greeks<double> &results) {
-        ind = 0;
-        for (int i = 0; i < NPATHS; ++i) {
-          // Initial setup
-          z   = h_z[ind]; 
-          z1 = z; 
-
-          // Initial path values
-          W1 = sqrt(dt) * z;
-          W_tilde = W1;
-          s_tilde = s0 * exp(omega * sqrt(dt - dt) + sigma * (W_tilde - W1));
-          s1 = s0 * exp(omega * dt + sigma * W1);
-          
-          // Set initial values required for greek estimates
-          vega_inner_sum = s_tilde * (W_tilde - W1 - sigma * (dt - dt));
-          lr_vega = ((z*z - O(1.0)) / sigma) - (z * sqrt(dt));
-          s_max = s1;
-
-          for (int n=0; n<N; n++) {
-            ind++;
-            z = h_z[ind]; 
-
-            // Stock dynamics
-            W_tilde = W_tilde + sqrt(dt) * z;
-            s_tilde = s0 * exp(omega * (dt*n - dt) + sigma * (W_tilde - W1));
-            s1 = s_tilde * exp(omega * dt + sigma * W1); 
-
-            // Required for greek estimations
-            if (s1 > s_max) {
-              s_max = s1;
-              vega_inner_sum = s_tilde * (W_tilde - W1 - sigma * (dt*n - dt)); 
-            } 
-            lr_vega += ((z*z - 1) / sigma) - (z * sqrt(dt));
-          }
-
-          psi_d = (log(k) - log(s_max) - omega * dt) / (sigma * sqrt(dt));
-
-          payoff = exp(-r * T) * max(s_max - k, 0.0f);
-
-          delta = exp(r * (dt - T)) * (s_max / s0)
-            * (1.0f - normcdf(psi_d - sigma * sqrt(dt)));
-
-          vega = exp(r * (dt - T)) * (O(1.0) - N_CDF(psi_d - sigma*sqrt(dt)))
-            * vega_inner_sum + k * exp(-r * T) * N_PDF(psi_d) * sqrt(dt);
-
-          gamma = ((k * exp(-r * T)) / (s0 * s0 * sigma * sqrt(dt)))
-            * N_PDF(psi_d);
-
-          theta = -exp(-r * T) * (s_max / s0) * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt))) * r;
-
-          lr_delta = (payoff / s0) * (z1 / sigma * sqrt(T - T/10)); 
-          lr_vega = payoff * (s0 * sqrt(T - T/10) * z1 / sigma); 
-          lr_gamma = (lr_delta / s0) * (z1 / sigma * sqrt(T - T/10));
-          lr_theta = -payoff * r * exp(-r * (T - T/10));
-
-          results.price[i] = payoff;
-          results.delta[i] = delta;
-          results.vega[i] = vega;
-          results.gamma[i] = gamma;
-          results.theta[i]=theta;
-          results.lr_delta[i] = lr_delta;
-          results.lr_vega[i] = lr_vega;
-          results.lr_gamma[i] = lr_gamma;
-          results.lr_theta[i]=lr_theta;
-        }
+          results.price[i] = 0.0f;
+          results.delta[i] = 0.0f;
+          results.vega[i] = 0.0f;
+          results.gamma[i] = 0.0f;
+          results.theta[i]=0.0f;
+          results.lr_delta[i] = 0.0f;
+          results.lr_vega[i] = 0.0f;
+          results.lr_gamma[i] = 0.0f;
+          results.lr_theta[i]=0.0f;
       }
   };
 
