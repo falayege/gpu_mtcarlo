@@ -722,8 +722,6 @@ namespace qmc {
       }
 
 
-
-
     __device__ void CalculatePayoffs(Greeks<double> &greeks) override {
         psi_d = (log(k) - log(s_max) - omega * dt) / (sigma * sqrt(dt));
 
@@ -765,7 +763,7 @@ namespace qmc {
       }
 
     __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float dt,
-          float sigma, O s0, O k, float T, float omega, Greeks<double> &results) {
+                          float sigma, O s0, float T, Greeks<double> &results) {
         ind = 0;
         for (int i = 0; i < NPATHS; ++i) {
           // Initial setup
@@ -815,11 +813,10 @@ namespace qmc {
 
           theta = -exp(-r * T) * (s_max / s0) * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt))) * r;
 
-          lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
-          lr_vega = payoff * lr_vega;
-          lr_gamma = payoff * (((z1*z1 - O(1.0)) / (s0 * s0 * sigma * sigma * dt)) - 
-            (z1 / (s0 * s0 * sigma * sqrt(dt))));
-          lr_theta = 0; //TODO
+          lr_delta = (payoff / s0) * (z1 / sigma * sqrt(T - T/10)); 
+          lr_vega = payoff * (s0 * sqrt(T - T/10) * z1 / sigma); 
+          lr_gamma = (lr_delta / s0) * (z1 / sigma * sqrt(T - T/10));
+          lr_theta = -payoff * r * exp(-r * (T - T/10));
 
           results.price[i] = payoff;
           results.delta[i] = delta;
@@ -830,6 +827,8 @@ namespace qmc {
           results.lr_vega[i] = lr_vega;
           results.lr_gamma[i] = lr_gamma;
           results.lr_theta[i]=lr_theta;
+
+
         }
       }
   };
