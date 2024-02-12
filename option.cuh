@@ -357,7 +357,7 @@ namespace qmc {
       }
 
     __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float dt,
-          float sigma, O s0, O k, float T,float T_start, float omega, Greeks<double> &results) {
+          float sigma, O s0, O k, float T, float omega, Greeks<double> &results) {
         ind = 0;
 
         for (int i = 0; i < NPATHS; ++i) {
@@ -561,7 +561,7 @@ namespace qmc {
       }
 
     __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float dt,
-          float sigma, O s0, O k, float T,float T_start, float omega, Greeks<double> &results) {
+          float sigma, O s0, O k, float T, float omega, Greeks<double> &results) {
         ind = 0;
         for (int i = 0; i < NPATHS; ++i) {
           // Initial setup
@@ -728,25 +728,25 @@ namespace qmc {
 
       // Greeks calculation needs to account for the forward start nature
       // For simplicity, let's consider d1 and d2 as they would be in a standard European call, adjusted for the forward start
-      O d1 = (log(s1 / k) + (r + 0.5 * sigma * sigma) * (T - T_start)) / (sigma * sqrt(T - T_start));
-      O d2 = d1 - sigma * sqrt(T - T_start);
+      O d1 = (log(s1 / k) + (r + 0.5 * sigma * sigma) * (T - T/10)) / (sigma * sqrt(T - T/10));
+      O d2 = d1 - sigma * sqrt(T - T/10);
 
       // Delta: Sensitivity of the option's price to the underlying stock price change
-      delta = exp(-r * (T - T_start)) * normcdf(d1);
+      delta = exp(-r * (T - T/10)) * normcdf(d1);
 
       // Vega: Sensitivity to volatility
-      vega = s1 * sqrt(T - T_start) * exp(-r * (T - T_start)) * N_PDF(d1);
+      vega = s1 * sqrt(T - T/10) * exp(-r * (T - T/10)) * N_PDF(d1);
 
       // Gamma: Rate of change of delta
-      gamma = N_PDF(d1) / (s1 * sigma * sqrt(T - T_start)) * exp(-r * (T - T_start));
+      gamma = N_PDF(d1) / (s1 * sigma * sqrt(T - T/10)) * exp(-r * (T - T/10));
 
       // Theta: Sensitivity to the passage of time
-      theta = -s1 * sigma * N_PDF(d1) / (2 * sqrt(T - T_start)) * exp(-r * (T - T_start)) - r * k * exp(-r * (T - T_start)) * normcdf(d2);
+      theta = -s1 * sigma * N_PDF(d1) / (2 * sqrt(T - T/10)) * exp(-r * (T - T/10)) - r * k * exp(-r * (T - T/10)) * normcdf(d2);
 
-      lr_delta = (payoff / s0) * (z1 / sigma * sqrt(T - T_start)); 
-      lr_vega = payoff * (s0 * sqrt(T - T_start) * z1 / sigma); 
-      lr_gamma = (lr_delta / s0) * (z1 / sigma * sqrt(T - T_start));
-      lr_theta = -payoff * r * exp(-r * (T - T_start));
+      lr_delta = (payoff / s0) * (z1 / sigma * sqrt(T - T/10)); 
+      lr_vega = payoff * (s0 * sqrt(T - T/10) * z1 / sigma); 
+      lr_gamma = (lr_delta / s0) * (z1 / sigma * sqrt(T - T/10));
+      lr_theta = -payoff * r * exp(-r * (T - T/10));
 
 
       // Store results in respective arrays
