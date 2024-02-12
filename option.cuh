@@ -810,7 +810,7 @@ __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float d
           gamma = ((k * exp(-r * T*0.9)) / (s0 * s0 * sigma * sqrt(dt)))
             * N_PDF(psi_d);
 
-          theta = -exp(-r * T*0.9) * (s_fin / s0) * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt))) * r;
+          theta = -exp(-r * T*0.9) * (s1 / s0) * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt))) * r;
 
           lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
           lr_vega = payoff * lr_vega;
