@@ -636,7 +636,7 @@ namespace qmc {
     O vega_inner_sum;
     O lr_delta, lr_vega, lr_gamma, lr_theta;
     float z, z1, W1, W_tilde;
-    int ind, ind_zero, T_start_ind; 
+    int ind, ind_zero; 
 
     void PrintName() {
       printf("\n**OPTION** : ForwardStartEuropeanCall\n");
