@@ -148,7 +148,7 @@ namespace qmc {
       }
 
     __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float dt,
-          float sigma, O s0, O k, float T, float omega, Greeks<double> &results) {
+          float sigma, O s0, O k, float T,float T_start, float omega, Greeks<double> &results) {
         ind = 0;
 
         for (int i = 0; i < NPATHS; ++i) {
@@ -357,7 +357,7 @@ namespace qmc {
       }
 
     __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float dt,
-          float sigma, O s0, O k, float T, float omega, Greeks<double> &results) {
+          float sigma, O s0, O k, float T,float T_start, float omega, Greeks<double> &results) {
         ind = 0;
 
         for (int i = 0; i < NPATHS; ++i) {
@@ -561,7 +561,7 @@ namespace qmc {
       }
 
     __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float dt,
-          float sigma, O s0, O k, float T, float omega, Greeks<double> &results) {
+          float sigma, O s0, O k, float T,float T_start, float omega, Greeks<double> &results) {
         ind = 0;
         for (int i = 0; i < NPATHS; ++i) {
           // Initial setup
@@ -632,7 +632,7 @@ namespace qmc {
   template <class O>
   struct ForwardStartEuropeanCall : Option<O> {
     O s1, s_tilde; // Stock price at current and intermediate steps
-    O strike; // Strike price, determined at T_start
+    O strike; 
     O payoff, delta, vega, gamma, theta; // Option Greeks
     O lr_delta, lr_vega, lr_gamma, lr_theta; // Likelihood ratio method for Greeks
     float z, z1, W1, W_tilde;
