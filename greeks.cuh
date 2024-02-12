@@ -7,7 +7,7 @@ namespace qmc {
   };
 
   __constant__ int   N, PATHS;
-  __constant__ float T, r, sigma, dt, omega, s0, k;
+  __constant__ float T,T_start, r, sigma, dt, omega, s0, k;
 
   template <class T>
   struct LikelihoodRatios {

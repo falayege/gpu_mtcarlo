@@ -631,12 +631,12 @@ namespace qmc {
     };
   template <class O>
   struct ForwardStartEuropeanCall : Option<O> {
-    O s1, s_tilde; // Stock price at current and intermediate steps
-    O strike; 
-    O payoff, delta, vega, gamma, theta; // Option Greeks
-    O lr_delta, lr_vega, lr_gamma, lr_theta; // Likelihood ratio method for Greeks
+    O s1, s_tilde, avg_s1, s_max;
+    O psi_d, payoff, delta, vega, gamma, theta;
+    O vega_inner_sum;
+    O lr_delta, lr_vega, lr_gamma, lr_theta;
     float z, z1, W1, W_tilde;
-    int ind, ind_zero, T_start_ind; // Indices for simulation and T_start
+    int ind, ind_zero, T_start_ind; 
 
     void PrintName() {
       printf("\n**OPTION** : ForwardStartEuropeanCall\n");
