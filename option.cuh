@@ -148,7 +148,7 @@ namespace qmc {
       }
 
     __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float dt,
-          float sigma, O s0, O k, float T,float T_start, float omega, Greeks<double> &results) {
+          float sigma, O s0, O k, float T, float omega, Greeks<double> &results) {
         ind = 0;
 
         for (int i = 0; i < NPATHS; ++i) {
@@ -762,7 +762,7 @@ namespace qmc {
     }
 
     __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float dt,
-                          float sigma, O s0, float T, float T_start, Greeks<double> &results) {
+                          float sigma, O s0, float T, Greeks<double> &results) {
         ind = 0;
         for (int i = 0; i < NPATHS; ++i) {
           // Initial setup
@@ -812,10 +812,10 @@ namespace qmc {
 
           theta = -exp(-r * T) * (s_max / s0) * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt))) * r;
 
-          lr_delta = (payoff / s0) * (z1 / sigma * sqrt(T - T_start)); 
-          lr_vega = payoff * (s0 * sqrt(T - T_start) * z1 / sigma); 
-          lr_gamma = (lr_delta / s0) * (z1 / sigma * sqrt(T - T_start));
-          lr_theta = -payoff * r * exp(-r * (T - T_start));
+          lr_delta = (payoff / s0) * (z1 / sigma * sqrt(T - T/10)); 
+          lr_vega = payoff * (s0 * sqrt(T - T/10) * z1 / sigma); 
+          lr_gamma = (lr_delta / s0) * (z1 / sigma * sqrt(T - T/10));
+          lr_theta = -payoff * r * exp(-r * (T - T/10));
 
           results.price[i] = payoff;
           results.delta[i] = delta;
