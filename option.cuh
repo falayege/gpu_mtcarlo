@@ -674,6 +674,7 @@ namespace qmc {
           } 
           lr_vega += ((z*z - 1) / sigma) - (z * sqrt(dt));
         }
+        s_max=0;
       }
 
     __device__ void SimulatePathsQuasiBB(const int N, float *d_z, O *d_path) {
@@ -718,6 +719,7 @@ namespace qmc {
             vega_inner_sum = s_tilde * (W_tilde - W1 - sigma * (dt*k - dt));
           }
         }
+        s_max=0;
       }
     __device__ void CalculatePayoffs(Greeks<double> &greeks) override {
         psi_d = (log(k) - log(s_max) - omega * dt) / (sigma * sqrt(dt));
