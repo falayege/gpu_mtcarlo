@@ -296,7 +296,7 @@ namespace qmc {
 
         // CPW Vega
         vega = exp(r * (dt - T)) * (O(1.0) - normcdf(psi_d - sigma*sqrt(dt)))
-          * vega_inner_sum + k * exp(-r * T) * N_PDF(psi_d) * sqrt(dt);
+          * vega_inner_sum + k * exp(-r * T) * normpdf(psi_d) * sqrt(dt);
 
         // CPW Gamma
         gamma = ((k * exp(-r * T)) / (s0 * s0 * sigma * sqrt(dt)))
