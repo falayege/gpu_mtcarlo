@@ -10,14 +10,60 @@
 #include "greeks.cuh"
 #include "kernels.cuh"
 #include "option.cuh"
-#include "timer.cuh"
 
 using namespace qmc;
+using namespace std;
+
+class Timer {
+    public:
+      Timer() {
+        cudaEventCreate(&d_start);
+        cudaEventCreate(&d_stop);
+      }
+
+      inline void BeginDevice() {
+        cudaEventRecord(d_start);
+      }
+
+      inline void StopDevice() {
+        cudaEventRecord(d_stop);
+        cudaEventSynchronize(d_stop);
+        cudaEventElapsedTime(&d_elapsed, d_start, d_stop);
+      } 
+
+      float GetDeviceElapsedTime() {
+        return d_elapsed;
+      }
+
+      inline void BeginHost() {
+        h_start = chrono::steady_clock::now();
+      }
+
+      inline void StopHost() {
+        h_stop = chrono::steady_clock::now();
+        h_elapsed = chrono::duration_cast<chrono::milliseconds>(h_stop - h_start).count();
+      }
+
+      float GetHostElapsedTime() {
+        return h_elapsed;
+      }
+
+      float GetSpeedUp() {
+        return h_elapsed / d_elapsed;
+      }
+
+    private:
+      cudaEvent_t d_start, d_stop;
+      chrono::steady_clock::time_point h_start, h_stop;
+      float h_elapsed, d_elapsed;
+
+};
+
 
 template <typename S>
 void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
     float h_sigma, float h_omega, float h_s0, float h_k, Method method,
-    LRResults<double>& lr_greeks) {
+    LikelihoodRatios<double>& lr_greeks) {
 
   if (method == Method::QUASI) {
     printf("Method : Quasi MonteCarlo\n");
@@ -61,25 +107,22 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
           sizeof(float) * timesteps * npath);
   }
 
-  timer.StartDeviceTimer();
+  timer.BeginDevice();
 
   curandGenerator_t gen;
   if (method == Method::STANDARD) {
      curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT) ;
      curandSetPseudoRandomGeneratorSeed(gen, 1234ULL) ;
-    /*  curandGenerateNormal(gen, d_z, timesteps * npath, 0.0f, 1.0f) ); */
   } else if (method == Method::QUASI || method == Method::QUASI_BB) {
     curandCreateGenerator(&gen, CURAND_RNG_QUASI_SCRAMBLED_SOBOL32);
     curandSetQuasiRandomGeneratorDimensions(gen, timesteps);
-    /* curandGenerateNormal(gen, d_temp_z, timesteps*npath, 0.0f, 1.0f)); */
+
   }
 
-  timer.StopDeviceTimer();
+  timer.StopDevice();
 
   printf("CURAND timer (ms): %f\n\n",
           timer.GetDeviceElapsedTime());
-
-  // Execute kernel and time it
   const int runs = 500;
   Greeks<double> final_greeks;
   final_greeks.AllocateHost(runs);
@@ -95,14 +138,11 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
        curandGenerateNormal(gen, d_z, timesteps * npath, 0.0f, 1.0f) ;
     }
 
-    timer.StartDeviceTimer();
+    timer.BeginDevice();
 
     Simulation<S> <<<npath/64, 64>>>(d_z, d_path, d_greeks, method);
 
-    timer.StopDeviceTimer();
-
-
-    // Copy back results
+    timer.StopDevice();
 
     h_greeks.CopyFromDevice(npath, d_greeks);
     h_greeks.CalculateGreeks(npath);
@@ -117,7 +157,7 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
     final_greeks.lr_vega[j] = h_greeks.avg_lr_vega;
     final_greeks.lr_gamma[j] = h_greeks.avg_lr_gamma;
     final_greeks.lr_theta[j] = h_greeks.avg_lr_theta;
-    /* h_greeks.PrintGreeks(true ,"GPU"); */
+  
   }
 
   final_greeks.CalculateGreeks(runs);
@@ -174,17 +214,17 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
   }
 
 
-  timer.StartHostTimer();
+  timer.BeginHost();
   h_option.HostMC(npath, timesteps, h_z, h_r, h_dt, h_sigma, h_s0, h_k, h_T,
       h_omega, h_greeks);
-  timer.StopHostTimer();
+  timer.StopHost();
 
   h_greeks.CalculateGreeks(npath);
   /* h_greeks.PrintGreeks(false, "CPU"); */
 
   printf("\nGPU timer (ms): %f \n", timer.GetDeviceElapsedTime());
   printf("CPU timer (ms): %f \n", timer.GetHostElapsedTime());
-  printf("Speedup factor: %fx\n", timer.GetSpeedUpFactor());
+  printf("Speedup factor: %fx\n", timer.GetSpeedUp());
   printf("\n------------------------------------------------------------------------\n");
   printf("------------------------------------------------------------------------\n");
 
@@ -245,7 +285,7 @@ int main(int argc, const char **argv){
     int h_N = 1 << h_m;
     float h_T, h_r, h_sigma, h_dt, h_omega, h_s0, h_k;
 
-    LRResults<double> lr_greeks;
+    LikelihoodRatios<double> lr_greeks;
 
 
     h_T     = 1.0f;
@@ -259,7 +299,7 @@ int main(int argc, const char **argv){
     // Lookback option
     RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
         h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
-    RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+    RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T,h_dt, h_r, h_sigma,
         h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
     RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
         h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
@@ -283,6 +323,13 @@ int main(int argc, const char **argv){
         h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
     printf("\n\n\n");
 
+    RunAndCompareMC<ForwardStartEuropeanCall<float>>(NPATHS, h_N, h_T,h_dt, h_r, h_sigma,
+        h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
+    RunAndCompareMC<ForwardStartEuropeanCall<float>>(NPATHS, h_N, h_T,h_dt, h_r, h_sigma,
+        h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
+    RunAndCompareMC<ForwardStartEuropeanCall<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+        h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
+    printf("\n\n\n");
 
 
     /* NPATHS <<= 1; */
