@@ -1,2 +1,2 @@
 to compute the code 
-nvcc -o main main.cu -lcurand
+nvcc -o simulation simulation.cu -lcurand

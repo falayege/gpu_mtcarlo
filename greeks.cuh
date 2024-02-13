@@ -10,7 +10,7 @@ namespace qmc {
   __constant__ float T, r, sigma, dt, omega, s0, k;
 
   template <class T>
-  struct LRResults {
+  struct LikelihoodRatios {
     T delta = 0, vega = 0, gamma = 0, theta = 0;
     T err_delta = 0, err_vega = 0, err_gamma = 0, err_theta= 0; 
   };
@@ -163,11 +163,11 @@ namespace qmc {
             printf("Greeks on %s:\n", dev);
         }
 
-        printf("Price: %10.5f (±%12.8f)\n", avg_price, err_price);
-        printf("Delta: %10.5f (±%12.8f)\n", avg_delta, err_delta);
-        printf("Vega: %10.5f (±%12.8f)\n", avg_vega, err_vega);
-        printf("Gamma: %10.5f (±%12.8f)\n", avg_gamma, err_gamma);
-        printf("Theta: %10.5f (±%12.8f)\n", avg_theta, err_theta);
+        printf("Price: %10.5f (±%12.5f)\n", avg_price, err_price);
+        printf("Delta: %10.5f (±%12.5f)\n", avg_delta, err_delta);
+        printf("Vega: %10.5f (±%12.5f)\n", avg_vega, err_vega);
+        printf("Gamma: %10.5f (±%12.5f)\n", avg_gamma, err_gamma);
+        printf("Theta: %10.5f (±%12.5f)\n", avg_theta, err_theta);
     }
   };
 }
