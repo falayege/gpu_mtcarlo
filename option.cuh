@@ -7,9 +7,9 @@ namespace qmc {
     return exp(-0.5f * x * x) * (1.0f / sqrt(2.0f * M_PI));
   }
 
-  __host__ float N_CDF(float x) {
-    return std::erfc(-x/std::sqrt(2))/2;
-  }
+  // __host__ float N_CDF(float x) {
+  //   return std::erfc(-x/std::sqrt(2))/2;
+  // }
 
 
 
@@ -368,9 +368,9 @@ namespace qmc {
           payoff = exp(-r * T) * max(avg_s1 - k, O(0.0));
 
           delta = exp(r * (dt - T)) * (avg_s1 / s0) 
-            * (O(1.0) - N_CDF(psi_d - sigma * sqrt(dt)));
+            * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt)));
 
-          vega = exp(r * (dt - T)) * (O(1.0) - N_CDF(psi_d - sigma*sqrt(dt)))
+          vega = exp(r * (dt - T)) * (O(1.0) - normcdf(psi_d - sigma*sqrt(dt)))
             * vega_inner_sum + k * exp(-r * T) * N_PDF(psi_d) * sqrt(dt);
 
           gamma = ((k * exp(-r * T)) / (s0 * s0 * sigma * sqrt(dt)))
@@ -781,7 +781,7 @@ namespace qmc {
           delta = exp(r * (dt - T)) * (s_max / s0)
             * (1.0f - normcdf(psi_d - sigma * sqrt(dt)));
 
-          vega = exp(r * (dt - T)) * (O(1.0) - N_CDF(psi_d - sigma*sqrt(dt)))
+          vega = exp(r * (dt - T)) * (O(1.0) - normcdf(psi_d - sigma*sqrt(dt)))
             * vega_inner_sum + k * exp(-r * T) * N_PDF(psi_d) * sqrt(dt);
 
           gamma = ((k * exp(-r * T)) / (s0 * s0 * sigma * sqrt(dt)))
@@ -980,7 +980,7 @@ __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float d
           delta = exp(r * (dt - T*0.9)) * (s1 / s0)
             * (1.0f - normcdf(psi_d - sigma * sqrt(dt)));
 
-          vega = exp(r * (dt - T*0.9)) * (O(1.0) - N_CDF(psi_d - sigma*sqrt(dt)))
+          vega = exp(r * (dt - T*0.9)) * (O(1.0) - normcdf(psi_d - sigma*sqrt(dt)))
             * vega_inner_sum + k_min * exp(-r * T) * N_PDF(psi_d) * sqrt(dt);
 
           gamma = ((k * exp(-r * T*0.9)) / (s0 * s0 * sigma * sqrt(dt)))
