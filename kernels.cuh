@@ -2,7 +2,7 @@
 
 #include <cuda.h>
 #include "option.cuh"
-#include <corecrt_math_defines.h>
+
 
 namespace qmc {
 
