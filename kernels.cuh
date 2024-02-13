@@ -1,18 +1,11 @@
 #pragma once
 
 #include <cuda.h>
+#include "option.cuh"
 
-#include "greeks.cuh"
+
 
 namespace qmc {
-
-  __host__ __device__ float N_PDF(float x) {
-    return exp(-0.5f * x * x) * (1.0f / sqrt(2.0f * M_PI));
-  }
-
-  __host__ float N_CDF(float x) {
-    return std::erfc(-x/std::sqrt(2))/2;
-  }
 
   //Algorithm 2
   __global__ void TransformSobol(float *d_z, float *temp_z) {
