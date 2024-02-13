@@ -2,7 +2,7 @@
 
 #include <cuda.h>
 
-#include "greeks.cuh"
+#include "option.cuh"
 
 namespace qmc {
 

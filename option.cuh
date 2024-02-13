@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cuda.h>
-#include "greeks.cuh"
 
 namespace qmc {
 

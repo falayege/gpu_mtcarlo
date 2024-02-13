@@ -7,7 +7,6 @@
 #include <cuda.h>
 #include <curand.h>
 
-#include "greeks.cuh"
 #include "kernels.cuh"
 #include "option.cuh"
 
