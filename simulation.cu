@@ -323,6 +323,7 @@ int main(int argc, const char **argv){
         h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
     printf("\n\n\n");
 
+    // Forward Start Option
     RunAndCompareMC<ForwardStartEuropeanCall<float>>(NPATHS, h_N, h_T,h_dt, h_r, h_sigma,
         h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
     RunAndCompareMC<ForwardStartEuropeanCall<float>>(NPATHS, h_N, h_T,h_dt, h_r, h_sigma,
