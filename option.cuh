@@ -375,7 +375,7 @@ namespace qmc {
 
           gamma = ((k * exp(-r * T)) / (s0 * s0 * sigma * sqrt(dt)))
             * N_PDF(psi_d);
-          theta = -exp(-r * T) * (avg_s1 / s0) * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt))) * r;
+          theta = -exp(-r * T) * (avg_s1 / s0) * (O(1.0) - N_CDF(psi_d - sigma * sqrt(dt))) * r;
 
           lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
           lr_vega = payoff * lr_vega;
@@ -779,7 +779,7 @@ namespace qmc {
           payoff = exp(-r * T) * max(s_max - k, 0.0f);
 
           delta = exp(r * (dt - T)) * (s_max / s0)
-            * (1.0f - normcdf(psi_d - sigma * sqrt(dt)));
+            * (1.0f - N_CDF(psi_d - sigma * sqrt(dt)));
 
           vega = exp(r * (dt - T)) * (O(1.0) - N_CDF(psi_d - sigma*sqrt(dt)))
             * vega_inner_sum + k * exp(-r * T) * N_PDF(psi_d) * sqrt(dt);
@@ -787,7 +787,7 @@ namespace qmc {
           gamma = ((k * exp(-r * T)) / (s0 * s0 * sigma * sqrt(dt)))
             * N_PDF(psi_d);
 
-          theta = -exp(-r * T) * (s_max / s0) * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt))) * r;
+          theta = -exp(-r * T) * (s_max / s0) * (O(1.0) - N_CDF(psi_d - sigma * sqrt(dt))) * r;
 
           lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
           lr_vega = payoff * lr_vega;
@@ -978,7 +978,7 @@ __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float d
           payoff = exp(-r * T*0.9) * max(s1- k_min, 0.0f);
 
           delta = exp(r * (dt - T*0.9)) * (s1 / s0)
-            * (1.0f - normcdf(psi_d - sigma * sqrt(dt)));
+            * (1.0f - N_CDF(psi_d - sigma * sqrt(dt)));
 
           vega = exp(r * (dt - T*0.9)) * (O(1.0) - N_CDF(psi_d - sigma*sqrt(dt)))
             * vega_inner_sum + k_min * exp(-r * T) * N_PDF(psi_d) * sqrt(dt);
@@ -986,7 +986,7 @@ __host__ void HostMC(const int NPATHS, const int N, float *h_z, float r, float d
           gamma = ((k * exp(-r * T*0.9)) / (s0 * s0 * sigma * sqrt(dt)))
             * N_PDF(psi_d);
 
-          theta = -exp(-r * T*0.9) * (s1 / s0) * (O(1.0) - normcdf(psi_d - sigma * sqrt(dt))) * r;
+          theta = -exp(-r * T*0.9) * (s1 / s0) * (O(1.0) - N_CDF(psi_d - sigma * sqrt(dt))) * r;
 
           lr_delta = payoff * (z1 / (s0 * sigma * sqrt(dt)));
           lr_vega = payoff * lr_vega;
