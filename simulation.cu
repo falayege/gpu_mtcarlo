@@ -64,10 +64,10 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
     float h_sigma, float h_omega, float h_s0, float h_k, Method method,
     LikelihoodRatios<double>& lr_greeks) {
 
-  if (method == Method::QUASI) {
-    printf("Method : Quasi MonteCarlo\n");
-  } else if (method == Method::STANDARD) {
+  if (method == Method::STANDARD) {
     printf("Method : Standard\n");
+  } else if (method == Method::QUASI) {
+    printf("Method : Quasi MonteCarlo\n");
   } else if(method == Method::QUASI_BB) {
     printf("Method : Quasi MonteCarlo with Brownian Bridging\n");
   }
@@ -77,7 +77,7 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
   h_option.PrintName();
   float *d_z, *d_temp_z;
   float *d_path;
-  Greeks<double> h_greeks, d_greeks;
+  Greeks<double> host_greeks, device_greeks;
   Timer timer;
 
   // Copy values to GPU constants
@@ -92,8 +92,8 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
   cudaMemcpyToSymbol(k, &h_k, sizeof(h_k));
 
   // Allocate host and device results
-  h_greeks.AllocateHost(npath);
-  d_greeks.AllocateDevice(npath);
+  host_greeks.AllocateHost(npath);
+  device_greeks.AllocateDevice(npath);
 
   // Allocate memory for random variables
   cudaMalloc((void **)&d_z, sizeof(float) * timesteps * npath);
@@ -127,7 +127,7 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
   final_greeks.AllocateHost(runs);
 
   // Perform M independent runs of the simulation to get variance
-  for (int j = 0; j < runs; ++j) {
+  for (int j = 0; j < runs; j++) {
     // Transform ordering of random variables into one that maximises memory
     // locality when threads access for path simulation
     if (method == Method::QUASI || method == Method::QUASI_BB) {
@@ -139,23 +139,23 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
 
     timer.BeginDevice();
 
-    Simulation<S> <<<npath/64, 64>>>(d_z, d_path, d_greeks, method);
+    Simulation<S> <<<npath/64, 64>>>(d_z, d_path, device_greeks, method);
 
     timer.StopDevice();
 
-    h_greeks.CopyFromDevice(npath, d_greeks);
-    h_greeks.CalculateGreeks(npath);
+    host_greeks.CopyFromDevice(npath, device_greeks);
+    host_greeks.CalculateGreeks(npath);
 
     // Transfer averages to final results struct
-    final_greeks.price[j] = h_greeks.avg_price;
-    final_greeks.delta[j] = h_greeks.avg_delta;
-    final_greeks.vega[j] = h_greeks.avg_vega;
-    final_greeks.gamma[j] = h_greeks.avg_gamma;
-    final_greeks.theta[j] = h_greeks.avg_theta;
-    final_greeks.lr_delta[j] = h_greeks.avg_lr_delta;
-    final_greeks.lr_vega[j] = h_greeks.avg_lr_vega;
-    final_greeks.lr_gamma[j] = h_greeks.avg_lr_gamma;
-    final_greeks.lr_theta[j] = h_greeks.avg_lr_theta;
+    final_greeks.price[j] = host_greeks.avg_price;
+    final_greeks.delta[j] = host_greeks.avg_delta;
+    final_greeks.vega[j] = host_greeks.avg_vega;
+    final_greeks.gamma[j] = host_greeks.avg_gamma;
+    final_greeks.theta[j] = host_greeks.avg_theta;
+    final_greeks.lr_delta[j] = host_greeks.avg_lr_delta;
+    final_greeks.lr_vega[j] = host_greeks.avg_lr_vega;
+    final_greeks.lr_gamma[j] = host_greeks.avg_lr_gamma;
+    final_greeks.lr_theta[j] = host_greeks.avg_lr_theta;
   
   }
 
@@ -198,7 +198,7 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
   if (method == Method::QUASI || method == Method::QUASI_BB) {
      cudaMemcpy(h_temp_z, d_temp_z, sizeof(float) * timesteps * npath, cudaMemcpyDeviceToHost );
 
-    // Rejig for sobol dimensions
+    // Rearrange for sobol dimensions
     int i = 0, j = 0;
     while (i < npath) {
       while (j < timesteps) {
@@ -215,11 +215,10 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
 
   timer.BeginHost();
   h_option.HostMC(npath, timesteps, h_z, h_r, h_dt, h_sigma, h_s0, h_k, h_T,
-      h_omega, h_greeks);
+      h_omega, host_greeks);
   timer.StopHost();
 
-  h_greeks.CalculateGreeks(npath);
-  /* h_greeks.PrintGreeks(false, "CPU"); */
+  host_greeks.CalculateGreeks(npath);
 
   printf("\nGPU timer (ms): %f \n", timer.GetDeviceElapsedTime());
   printf("CPU timer (ms): %f \n", timer.GetHostElapsedTime());
@@ -231,8 +230,8 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
 
   // Release memory and exit cleanly
 
-  h_greeks.ReleaseHost();
-  d_greeks.ReleaseDevice();
+  host_greeks.ReleaseHost();
+  device_greeks.ReleaseDevice();
   final_greeks.ReleaseHost();
   free(h_z);
   free(h_temp_z);
@@ -246,26 +245,11 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
 }
 
 int main(int argc, const char **argv){
-  int deviceCount;
-    cudaError_t err = cudaGetDeviceCount(&deviceCount);
 
-    if (err != cudaSuccess) {
-        std::cerr << "CUDA error: " << cudaGetErrorString(err) << std::endl;
-        return -1;
-    }
 
-    if (deviceCount == 0) {
-        std::cerr << "No CUDA devices available" << std::endl;
-        return -1;
-    }
-
-    cudaDeviceProp prop;
-    err = cudaGetDeviceProperties(&prop, 0);
-
-    if (err != cudaSuccess) {
-        std::cerr << "Failed to get device properties: " << cudaGetErrorString(err) << std::endl;
-        return -1;
-    }
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, 0);
+  
   std::cout << "GPU Specifications\n";
   std::cout << "Number of multiprocessors: " << prop.multiProcessorCount << std::endl;
   std::cout << "Maximum grid dimensions: (" << prop.maxGridSize[0] << ", " 
@@ -278,64 +262,60 @@ int main(int argc, const char **argv){
   std::cout << std::endl;
     
   int NPATHS = (1 << 15);
-  int h_m = 6;
+  int h_m = 8; // 256 timesteps
 
-  while (h_m <= 8) {
-    int h_N = 1 << h_m;
-    float h_T, h_r, h_sigma, h_dt, h_omega, h_s0, h_k;
+  int h_N = 1 << h_m ;
+  float h_T, h_r, h_sigma, h_dt, h_omega, h_s0, h_k;
 
-    LikelihoodRatios<double> lr_greeks;
-
-
-    h_T     = 1.0f;
-    h_r     = 0.1f;
-    h_sigma = 0.2f;
-    h_dt    = h_T/h_N;
-    h_omega = h_r - (h_sigma * h_sigma) / 2.0f;
-    h_s0      = 100.0f;
-    h_k       = 90.0f;
-
-    // Lookback option
-    RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
-    RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T,h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
-    RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
-    printf("\n\n\n");
-
-    // Arithmetic Asian option
-    RunAndCompareMC<ArithmeticAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
-    RunAndCompareMC<ArithmeticAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
-    RunAndCompareMC<ArithmeticAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
-    printf("\n\n\n");
-
-    // Binary Asian option
-    RunAndCompareMC<BinaryAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
-    RunAndCompareMC<BinaryAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
-    RunAndCompareMC<BinaryAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
-    printf("\n\n\n");
-
-    // Forward Start Option
-    RunAndCompareMC<ForwardStartEuropeanCall<float>>(NPATHS, h_N, h_T,h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
-    RunAndCompareMC<ForwardStartEuropeanCall<float>>(NPATHS, h_N, h_T,h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
-    RunAndCompareMC<ForwardStartEuropeanCall<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
-        h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
-    printf("\n\n\n");
+  LikelihoodRatios<double> lr_greeks;
 
 
-    /* NPATHS <<= 1; */
-    h_m += 2; // Jump to 256 timesteps
+  h_T     = 1.0f;
+  h_r     = 0.1f;
+  h_sigma = 0.2f;
+  h_dt    = h_T/h_N;
+  h_omega = h_r - (h_sigma * h_sigma) / 2.0f;
+  h_s0      = 100.0f;
+  h_k       = 90.0f;
 
-  }
+
+  // Arithmetic Asian option
+  RunAndCompareMC<ArithmeticAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+      h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
+  RunAndCompareMC<ArithmeticAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+      h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
+  RunAndCompareMC<ArithmeticAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+      h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
+  printf("\n\n\n");
+
+  // Binary Asian option
+  RunAndCompareMC<BinaryAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+      h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
+  RunAndCompareMC<BinaryAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+      h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
+  RunAndCompareMC<BinaryAsian<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+      h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
+  printf("\n\n\n");
+
+
+  // Lookback option
+  RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+      h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
+  RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T,h_dt, h_r, h_sigma,
+      h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
+  RunAndCompareMC<Lookback<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+      h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
+  printf("\n\n\n");
+
+  // Forward Start Option
+  RunAndCompareMC<ForwardStartEuropeanCall<float>>(NPATHS, h_N, h_T,h_dt, h_r, h_sigma,
+      h_omega, h_s0, h_k, Method::STANDARD, lr_greeks);
+  RunAndCompareMC<ForwardStartEuropeanCall<float>>(NPATHS, h_N, h_T,h_dt, h_r, h_sigma,
+      h_omega, h_s0, h_k, Method::QUASI, lr_greeks);
+  RunAndCompareMC<ForwardStartEuropeanCall<float>>(NPATHS, h_N, h_T, h_dt, h_r, h_sigma,
+      h_omega, h_s0, h_k, Method::QUASI_BB, lr_greeks);
+  printf("\n\n\n");
+
 
   // CUDA exit -- needed to flush printf write buffer
   cudaDeviceReset();
