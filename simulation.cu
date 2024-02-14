@@ -246,7 +246,11 @@ void RunAndCompareMC(int npath, int timesteps, float h_T, float h_dt, float h_r,
 
 int main(int argc, const char **argv){
 
-  cudaDeviceProp prop;
+  int deviceCount;
+    cudaError_t err = cudaGetDeviceCount(&deviceCount);
+
+    cudaDeviceProp prop;
+    err = cudaGetDeviceProperties(&prop, 0);
   
   std::cout << "GPU Specifications\n";
   std::cout << "Number of multiprocessors: " << prop.multiProcessorCount << std::endl;
